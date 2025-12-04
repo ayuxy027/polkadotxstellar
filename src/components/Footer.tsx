@@ -2,10 +2,10 @@ import { Link } from 'react-router-dom';
 
 const Footer = () => {
   const footerLinks = {
-    Product: ['Features', 'Pricing', 'Integrations', 'Changelog'],
-    Company: ['About', 'Blog', 'Careers', 'Press'],
-    Resources: ['Documentation', 'Help Center', 'Community', 'Templates'],
-    Legal: ['Privacy', 'Terms', 'Security', 'Cookies'],
+    Product: ['Features', 'Check Reputation', 'Credentials', 'Integrations'],
+    Company: ['About', 'Blog', 'Team', 'Press'],
+    Resources: ['Documentation', 'API Reference', 'Developers', 'Guides'],
+    Legal: ['Privacy', 'Terms', 'Security', 'Disclosures'],
   };
 
   return (
@@ -15,12 +15,12 @@ const Footer = () => {
           <div className="col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 bg-stone-800 rounded-lg flex items-center justify-center">
-                <span className="text-stone-50 font-bold text-sm">V</span>
+                <span className="text-stone-50 font-bold text-sm">CR</span>
               </div>
-              <span className="font-semibold text-stone-800 tracking-tight">Vertex</span>
+              <span className="font-semibold text-stone-800 tracking-tight">ChainRepute</span>
             </Link>
             <p className="text-stone-500 text-sm max-w-xs leading-relaxed">
-              Building the future of team collaboration, one feature at a time.
+              Unifying Web3 identity across Stellar and Polkadot ecosystems.
             </p>
           </div>
 
@@ -30,8 +30,8 @@ const Footer = () => {
               <ul className="space-y-3">
                 {links.map((link) => (
                   <li key={link}>
-                    <Link 
-                      to="/" 
+                    <Link
+                      to="/"
                       className="text-sm text-stone-500 transition-colors duration-300 ease-out"
                     >
                       {link}
@@ -45,7 +45,7 @@ const Footer = () => {
 
         <div className="pt-8 border-t border-stone-200 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-stone-400">
-            © 2025 Vertex. All rights reserved.
+            © 2025 ChainRepute. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
             <a href="#" className="text-stone-400 transition-colors duration-300 ease-out">

@@ -1,22 +1,22 @@
 const Testimonials = () => {
   const testimonials = [
     {
-      quote: "Vertex transformed how our team collaborates. We've cut our project delivery time in half.",
-      author: "Sarah Chen",
-      role: "Head of Product",
-      company: "TechFlow",
+      quote: "ChainRepute solved the fragmented identity problem I faced across Stellar and Polkadot. My reputation now follows me everywhere.",
+      author: "Alex Rivera",
+      role: "DeFi Trader",
+      company: "Polkadot Ecosystem",
     },
     {
-      quote: "The most intuitive platform we've ever used. Our team adopted it within days.",
-      author: "Marcus Williams",
-      role: "Engineering Lead",
-      company: "Buildspace",
+      quote: "As a governance participant, I can now prove my cross-chain contribution history to new DAOs. This is a game-changer.",
+      author: "Sarah Kim",
+      role: "DAO Contributor",
+      company: "Stellar Network",
     },
     {
-      quote: "Finally, a tool that doesn't get in the way. It just works, beautifully.",
-      author: "Elena Rodriguez",
-      role: "Founder",
-      company: "Creatify",
+      quote: "Finally, a tool that unifies my Web3 identity. I got access to an exclusive community based on my verified reputation.",
+      author: "Marcus Johnson",
+      role: "Liquidity Provider",
+      company: "Cross-Chain Investor",
     },
   ];
 
@@ -26,16 +26,16 @@ const Testimonials = () => {
         <div className="text-center max-w-2xl mx-auto mb-16">
           <p className="text-sm font-medium text-stone-500 mb-4">Testimonials</p>
           <h2 className="text-3xl md:text-4xl font-bold text-stone-900 mb-4 tracking-tight">
-            Loved by teams everywhere
+            Trusted by Web3 users
           </h2>
           <p className="text-lg text-stone-500">
-            See what our customers have to say about their experience.
+            See what our users say about cross-chain reputation.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {testimonials.map((testimonial, index) => (
-            <div 
+            <div
               key={testimonial.author}
               className="p-8 bg-white border border-stone-200 rounded-2xl animate-fade-in-up"
               style={{ animationDelay: `${index * 150}ms`, animationFillMode: 'both' }}

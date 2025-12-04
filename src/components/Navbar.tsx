@@ -7,9 +7,9 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-stone-800 rounded-lg flex items-center justify-center">
-              <span className="text-stone-50 font-bold text-sm">V</span>
+              <span className="text-stone-50 font-bold text-sm">CR</span>
             </div>
-            <span className="font-semibold text-stone-800 tracking-tight">Vertex</span>
+            <span className="font-semibold text-stone-800 tracking-tight">ChainRepute</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-8">
@@ -19,8 +19,8 @@ const Navbar = () => {
             <Link to="/features" className="text-sm text-stone-600 transition-colors duration-300 ease-out">
               Features
             </Link>
-            <Link to="/pricing" className="text-sm text-stone-600 transition-colors duration-300 ease-out">
-              Pricing
+            <Link to="/reputation" className="text-sm text-stone-600 transition-colors duration-300 ease-out">
+              Check Reputation
             </Link>
             <Link to="/about" className="text-sm text-stone-600 transition-colors duration-300 ease-out">
               About
@@ -28,17 +28,17 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            <Link 
-              to="/login" 
+            <Link
+              to="/login"
               className="text-sm text-stone-600 transition-colors duration-300 ease-out"
             >
               Sign in
             </Link>
-            <Link 
-              to="/signup" 
+            <Link
+              to="/dashboard"
               className="text-sm px-4 py-2 bg-stone-800 text-stone-50 rounded-lg transition-all duration-300 ease-out"
             >
-              Get Started
+              Connect Wallet
             </Link>
           </div>
         </div>
