@@ -60,9 +60,11 @@ const Features = () => {
     <section className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <p className="text-sm font-medium text-rose-600 mb-4">Features</p>
-          <h2 className="text-3xl md:text-4xl font-bold text-rose-900 mb-4 tracking-tight">
-            Everything you need for cross-chain reputation
+          <p className="text-sm font-medium text-rose-600 mb-4 uppercase tracking-wider">Features</p>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">
+            <span className="bg-gradient-to-r from-rose-900 via-rose-800 to-rose-900 bg-clip-text text-transparent">
+              Everything you need for cross-chain reputation
+            </span>
           </h2>
           <p className="text-lg text-rose-700">
             Powerful features designed to unify your Web3 identity across ecosystems.
@@ -73,13 +75,13 @@ const Features = () => {
           {features.map((feature, index) => (
             <div
               key={feature.title}
-              className="p-6 bg-rose-50 border border-rose-100 rounded-2xl transition-all duration-500 ease-out animate-fade-in-up"
+              className="group p-6 bg-gradient-to-br from-rose-50 to-pink-50 border border-rose-100/50 rounded-2xl transition-all duration-500 ease-out animate-fade-in-up hover:border-rose-200 hover:shadow-xl hover:shadow-rose-200/50 hover:-translate-y-1"
               style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'both' }}
             >
-              <div className="w-12 h-12 bg-rose-100 rounded-xl flex items-center justify-center text-rose-700 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-rose-100 to-pink-100 rounded-xl flex items-center justify-center text-rose-700 mb-4 group-hover:from-rose-200 group-hover:to-pink-200 transition-all duration-300">
                 {feature.icon}
               </div>
-              <h3 className="text-lg font-semibold text-rose-900 mb-2">{feature.title}</h3>
+              <h3 className="text-lg font-semibold text-rose-900 mb-2 group-hover:text-rose-950 transition-colors">{feature.title}</h3>
               <p className="text-rose-700 leading-relaxed">{feature.description}</p>
             </div>
           ))}
