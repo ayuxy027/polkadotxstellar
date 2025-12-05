@@ -7,15 +7,15 @@ import {
   type ReactNode,
 } from "react";
 import { getWallets, type Wallet, type WalletAccount } from "@talismn/connect-wallets";
+import albedo from "@albedo-link/intent";
 
 // ============================================
 // Types & Interfaces
 // ============================================
 
-export interface EVMWallet {
+export interface StellarWallet {
   address: string | null;
   connected: boolean;
-  chainId: number | null;
   walletName: string | null;
 }
 
@@ -28,33 +28,23 @@ export interface PolkadotWallet {
   wallet: Wallet | null;
 }
 
-interface EVMWalletOption {
-  id: string;
-  name: string;
-  icon: string;
-  installed: boolean;
-  deepLink?: string;
-}
-
 interface WalletContextType {
-  // EVM wallet state (Trust Wallet / MetaMask / etc via injected provider)
-  evm: EVMWallet;
+  // Stellar wallet state (via Albedo - FREE)
+  stellar: StellarWallet;
   // Polkadot wallet state (via Talisman)
   polkadot: PolkadotWallet;
   // Loading states
-  isConnectingEVM: boolean;
+  isConnectingStellar: boolean;
   isConnectingPolkadot: boolean;
   // Error states
-  evmError: string | null;
+  stellarError: string | null;
   polkadotError: string | null;
   // Available Polkadot wallets
   availableWallets: Wallet[];
-  // Available EVM wallets
-  availableEVMWallets: EVMWalletOption[];
   // Connection functions
-  connectEVM: (walletType?: string) => Promise<void>;
+  connectStellar: () => Promise<void>;
   connectPolkadot: (walletName?: string) => Promise<void>;
-  disconnectEVM: () => void;
+  disconnectStellar: () => void;
   disconnectPolkadot: () => void;
   disconnectAll: () => void;
   // Polkadot account selection
@@ -65,15 +55,11 @@ interface WalletContextType {
   isDemoMode: boolean;
   enableDemoMode: () => void;
   disableDemoMode: () => void;
-  // Wallet selection modal
-  showEVMModal: boolean;
-  setShowEVMModal: (show: boolean) => void;
 }
 
-const defaultEVMWallet: EVMWallet = {
+const defaultStellarWallet: StellarWallet = {
   address: null,
   connected: false,
-  chainId: null,
   walletName: null,
 };
 
@@ -87,21 +73,20 @@ const defaultPolkadotWallet: PolkadotWallet = {
 };
 
 // Demo mode test addresses
-const DEMO_EVM_ADDRESS = "0x742d35Cc6634C0532925a3b844Bc9e7595f3bE21";
+const DEMO_STELLAR_ADDRESS = "GBZXN7PIRZGNMHGA7MUUUF4GWPY5AYPV6LY4UV2GL6VJGIQRXFDNMADI";
 const DEMO_POLKADOT_ADDRESS = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 
 export const WalletContext = createContext<WalletContextType>({
-  evm: defaultEVMWallet,
+  stellar: defaultStellarWallet,
   polkadot: defaultPolkadotWallet,
-  isConnectingEVM: false,
+  isConnectingStellar: false,
   isConnectingPolkadot: false,
-  evmError: null,
+  stellarError: null,
   polkadotError: null,
   availableWallets: [],
-  availableEVMWallets: [],
-  connectEVM: async () => { },
+  connectStellar: async () => { },
   connectPolkadot: async () => { },
-  disconnectEVM: () => { },
+  disconnectStellar: () => { },
   disconnectPolkadot: () => { },
   disconnectAll: () => { },
   selectPolkadotAccount: () => { },
@@ -109,8 +94,6 @@ export const WalletContext = createContext<WalletContextType>({
   isDemoMode: false,
   enableDemoMode: () => { },
   disableDemoMode: () => { },
-  showEVMModal: false,
-  setShowEVMModal: () => { },
 });
 
 // ============================================
@@ -121,68 +104,7 @@ const APP_NAME = "ChainRepute";
 const STORAGE_KEYS = {
   POLKADOT_WALLET: "chainrepute_polkadot_wallet",
   POLKADOT_ADDRESS: "chainrepute_polkadot_address",
-  EVM_WALLET: "chainrepute_evm_wallet",
-  EVM_ADDRESS: "chainrepute_evm_address",
-};
-
-// EVM Wallet detection helpers
-const getEVMProvider = (): any => {
-  if (typeof window === "undefined") return null;
-
-  const ethereum = (window as any).ethereum;
-  if (!ethereum) return null;
-
-  return ethereum;
-};
-
-const detectEVMWallets = (): EVMWalletOption[] => {
-  const wallets: EVMWalletOption[] = [];
-
-  if (typeof window === "undefined") return wallets;
-
-  const ethereum = (window as any).ethereum;
-
-  // Check for Trust Wallet
-  const isTrust = ethereum?.isTrust || ethereum?.isTrustWallet;
-  wallets.push({
-    id: "trust",
-    name: "Trust Wallet",
-    icon: "🛡️",
-    installed: !!isTrust,
-    deepLink: "https://link.trustwallet.com/open_url?coin_id=60&url=" + encodeURIComponent(typeof window !== "undefined" ? window.location.href : ""),
-  });
-
-  // Check for MetaMask
-  const isMetaMask = ethereum?.isMetaMask && !ethereum?.isTrust;
-  wallets.push({
-    id: "metamask",
-    name: "MetaMask",
-    icon: "🦊",
-    installed: !!isMetaMask,
-    deepLink: "https://metamask.app.link/dapp/" + (typeof window !== "undefined" ? window.location.host : ""),
-  });
-
-  // Check for Coinbase Wallet
-  const isCoinbase = ethereum?.isCoinbaseWallet;
-  wallets.push({
-    id: "coinbase",
-    name: "Coinbase Wallet",
-    icon: "🔵",
-    installed: !!isCoinbase,
-    deepLink: "https://go.cb-w.com/dapp?cb_url=" + encodeURIComponent(typeof window !== "undefined" ? window.location.href : ""),
-  });
-
-  // Generic injected wallet (if any)
-  if (ethereum && !isTrust && !isMetaMask && !isCoinbase) {
-    wallets.push({
-      id: "injected",
-      name: "Browser Wallet",
-      icon: "💳",
-      installed: true,
-    });
-  }
-
-  return wallets;
+  STELLAR_ADDRESS: "chainrepute_stellar_address",
 };
 
 // ============================================
@@ -192,15 +114,13 @@ const detectEVMWallets = (): EVMWalletOption[] => {
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // Demo mode state
   const [isDemoMode, setIsDemoMode] = useState(false);
-  const [demoEvm, setDemoEvm] = useState<EVMWallet>(defaultEVMWallet);
+  const [demoStellar, setDemoStellar] = useState<StellarWallet>(defaultStellarWallet);
   const [demoPolkadot, setDemoPolkadot] = useState<PolkadotWallet>(defaultPolkadotWallet);
 
-  // EVM state
-  const [evmWallet, setEvmWallet] = useState<EVMWallet>(defaultEVMWallet);
-  const [isConnectingEVM, setIsConnectingEVM] = useState(false);
-  const [evmError, setEvmError] = useState<string | null>(null);
-  const [availableEVMWallets, setAvailableEVMWallets] = useState<EVMWalletOption[]>([]);
-  const [showEVMModal, setShowEVMModal] = useState(false);
+  // Stellar state
+  const [stellarWallet, setStellarWallet] = useState<StellarWallet>(defaultStellarWallet);
+  const [isConnectingStellar, setIsConnectingStellar] = useState(false);
+  const [stellarError, setStellarError] = useState<string | null>(null);
 
   // Polkadot state
   const [polkadot, setPolkadot] = useState<PolkadotWallet>(defaultPolkadotWallet);
@@ -209,19 +129,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [availableWallets, setAvailableWallets] = useState<Wallet[]>([]);
 
   // Derive actual states (demo or real)
-  const evm: EVMWallet = isDemoMode ? demoEvm : evmWallet;
+  const stellar: StellarWallet = isDemoMode ? demoStellar : stellarWallet;
   const actualPolkadot = isDemoMode ? demoPolkadot : polkadot;
 
   // ============================================
-  // Initialize available wallets on mount
+  // Initialize available Polkadot wallets on mount
   // ============================================
 
   useEffect(() => {
-    // Detect EVM wallets
-    const evmWallets = detectEVMWallets();
-    setAvailableEVMWallets(evmWallets);
-    console.log("[WalletContext] Available EVM wallets:", evmWallets);
-
     // Detect Polkadot wallets
     const wallets = getWallets();
     const installed = wallets.filter((w) => w.installed);
@@ -230,76 +145,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // ============================================
-  // Listen for account/chain changes
-  // ============================================
-
-  useEffect(() => {
-    const ethereum = getEVMProvider();
-    if (!ethereum) return;
-
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (accounts.length === 0) {
-        // User disconnected
-        setEvmWallet(defaultEVMWallet);
-        localStorage.removeItem(STORAGE_KEYS.EVM_WALLET);
-        localStorage.removeItem(STORAGE_KEYS.EVM_ADDRESS);
-      } else {
-        setEvmWallet((prev) => ({
-          ...prev,
-          address: accounts[0],
-          connected: true,
-        }));
-        localStorage.setItem(STORAGE_KEYS.EVM_ADDRESS, accounts[0]);
-      }
-    };
-
-    const handleChainChanged = (chainId: string) => {
-      setEvmWallet((prev) => ({
-        ...prev,
-        chainId: parseInt(chainId, 16),
-      }));
-    };
-
-    ethereum.on("accountsChanged", handleAccountsChanged);
-    ethereum.on("chainChanged", handleChainChanged);
-
-    return () => {
-      ethereum.removeListener("accountsChanged", handleAccountsChanged);
-      ethereum.removeListener("chainChanged", handleChainChanged);
-    };
-  }, []);
-
-  // ============================================
   // Auto-reconnect on mount
   // ============================================
 
   useEffect(() => {
-    // Auto-reconnect EVM
-    const autoReconnectEVM = async () => {
-      const savedWallet = localStorage.getItem(STORAGE_KEYS.EVM_WALLET);
-      const savedAddress = localStorage.getItem(STORAGE_KEYS.EVM_ADDRESS);
-
-      if (savedWallet && savedAddress) {
-        const ethereum = getEVMProvider();
-        if (ethereum) {
-          try {
-            const accounts = await ethereum.request({ method: "eth_accounts" });
-            if (accounts.length > 0 && accounts.includes(savedAddress)) {
-              const chainId = await ethereum.request({ method: "eth_chainId" });
-              setEvmWallet({
-                address: savedAddress,
-                connected: true,
-                chainId: parseInt(chainId, 16),
-                walletName: savedWallet,
-              });
-              console.log("[EVM] Auto-reconnected:", savedAddress);
-            }
-          } catch (err) {
-            console.warn("[EVM] Auto-reconnect failed:", err);
-          }
-        }
-      }
-    };
+    // Auto-reconnect Stellar (just restore from localStorage)
+    const savedStellarAddress = localStorage.getItem(STORAGE_KEYS.STELLAR_ADDRESS);
+    if (savedStellarAddress) {
+      setStellarWallet({
+        address: savedStellarAddress,
+        connected: true,
+        walletName: "Albedo",
+      });
+      console.log("[Stellar] Restored address:", savedStellarAddress);
+    }
 
     // Auto-reconnect Polkadot
     const autoReconnectPolkadot = async () => {
@@ -337,81 +196,55 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    autoReconnectEVM();
     autoReconnectPolkadot();
   }, []);
 
   // ============================================
-  // EVM Connection
+  // Stellar Connection (via Albedo - FREE!)
   // ============================================
 
-  const connectEVM = useCallback(async (walletType?: string) => {
-    console.log("[EVM] Connecting...", walletType || "default");
-    setIsConnectingEVM(true);
-    setEvmError(null);
+  const connectStellar = useCallback(async () => {
+    console.log("[Stellar] Connecting via Albedo...");
+    setIsConnectingStellar(true);
+    setStellarError(null);
 
     try {
-      const ethereum = getEVMProvider();
+      // Request public key from Albedo (opens popup)
+      const result = await albedo.publicKey({});
 
-      if (!ethereum) {
-        // No wallet installed - show deep links
-        const wallet = availableEVMWallets.find(w => w.id === walletType);
-        if (wallet?.deepLink) {
-          window.open(wallet.deepLink, "_blank");
-          throw new Error("Please install " + wallet.name + " or open this page in the wallet's browser.");
-        }
-        throw new Error("No EVM wallet detected. Please install Trust Wallet, MetaMask, or another EVM wallet.");
+      if (!result.pubkey) {
+        throw new Error("No public key returned from Albedo");
       }
 
-      // Request accounts
-      const accounts = await ethereum.request({ method: "eth_requestAccounts" });
-
-      if (accounts.length === 0) {
-        throw new Error("No accounts found. Please unlock your wallet.");
-      }
-
-      // Get chain ID
-      const chainId = await ethereum.request({ method: "eth_chainId" });
-
-      // Detect which wallet we're using
-      let walletName = "Browser Wallet";
-      if (ethereum.isTrust || ethereum.isTrustWallet) walletName = "Trust Wallet";
-      else if (ethereum.isMetaMask) walletName = "MetaMask";
-      else if (ethereum.isCoinbaseWallet) walletName = "Coinbase Wallet";
-
-      setEvmWallet({
-        address: accounts[0],
+      setStellarWallet({
+        address: result.pubkey,
         connected: true,
-        chainId: parseInt(chainId, 16),
-        walletName,
+        walletName: "Albedo",
       });
 
       // Save for auto-reconnect
-      localStorage.setItem(STORAGE_KEYS.EVM_WALLET, walletName);
-      localStorage.setItem(STORAGE_KEYS.EVM_ADDRESS, accounts[0]);
+      localStorage.setItem(STORAGE_KEYS.STELLAR_ADDRESS, result.pubkey);
 
-      console.log("[EVM] Connected:", accounts[0], "via", walletName);
-      setShowEVMModal(false);
+      console.log("[Stellar] Connected via Albedo:", result.pubkey);
 
     } catch (err: any) {
-      const message = err.message || "Failed to connect EVM wallet";
-      console.error("[EVM] Connection error:", message);
-      setEvmError(message);
+      const message = err.message || "Failed to connect Stellar wallet";
+      console.error("[Stellar] Connection error:", message);
+      setStellarError(message);
     } finally {
-      setIsConnectingEVM(false);
+      setIsConnectingStellar(false);
     }
-  }, [availableEVMWallets]);
+  }, []);
 
-  const disconnectEVM = useCallback(() => {
-    setEvmWallet(defaultEVMWallet);
-    setEvmError(null);
-    localStorage.removeItem(STORAGE_KEYS.EVM_WALLET);
-    localStorage.removeItem(STORAGE_KEYS.EVM_ADDRESS);
-    console.log("[EVM] Disconnected");
+  const disconnectStellar = useCallback(() => {
+    setStellarWallet(defaultStellarWallet);
+    setStellarError(null);
+    localStorage.removeItem(STORAGE_KEYS.STELLAR_ADDRESS);
+    console.log("[Stellar] Disconnected");
   }, []);
 
   // ============================================
-  // Polkadot Connection
+  // Polkadot Connection (via Talisman/SubWallet)
   // ============================================
 
   const connectPolkadot = useCallback(async (walletName?: string) => {
@@ -509,14 +342,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // ============================================
 
   const disconnectAll = useCallback(() => {
-    disconnectEVM();
+    disconnectStellar();
     disconnectPolkadot();
     console.log("[Wallet] All wallets disconnected");
-  }, [disconnectEVM, disconnectPolkadot]);
+  }, [disconnectStellar, disconnectPolkadot]);
 
   const areBothConnected = useCallback(() => {
-    return evm.connected && actualPolkadot.connected;
-  }, [evm.connected, actualPolkadot.connected]);
+    return stellar.connected && actualPolkadot.connected;
+  }, [stellar.connected, actualPolkadot.connected]);
 
   // ============================================
   // Demo Mode Functions
@@ -524,10 +357,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const enableDemoMode = useCallback(() => {
     console.log("[Demo] Enabling demo mode with test addresses");
-    setDemoEvm({
-      address: DEMO_EVM_ADDRESS,
+    setDemoStellar({
+      address: DEMO_STELLAR_ADDRESS,
       connected: true,
-      chainId: 1,
       walletName: "Demo Wallet",
     });
     setDemoPolkadot({
@@ -543,7 +375,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const disableDemoMode = useCallback(() => {
     console.log("[Demo] Disabling demo mode");
-    setDemoEvm(defaultEVMWallet);
+    setDemoStellar(defaultStellarWallet);
     setDemoPolkadot(defaultPolkadotWallet);
     setIsDemoMode(false);
   }, []);
@@ -553,17 +385,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // ============================================
 
   const value: WalletContextType = {
-    evm,
+    stellar,
     polkadot: actualPolkadot,
-    isConnectingEVM: isDemoMode ? false : isConnectingEVM,
+    isConnectingStellar: isDemoMode ? false : isConnectingStellar,
     isConnectingPolkadot: isDemoMode ? false : isConnectingPolkadot,
-    evmError: isDemoMode ? null : evmError,
+    stellarError: isDemoMode ? null : stellarError,
     polkadotError: isDemoMode ? null : polkadotError,
     availableWallets,
-    availableEVMWallets,
-    connectEVM,
+    connectStellar,
     connectPolkadot,
-    disconnectEVM,
+    disconnectStellar,
     disconnectPolkadot,
     disconnectAll,
     selectPolkadotAccount,
@@ -571,8 +402,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     isDemoMode,
     enableDemoMode,
     disableDemoMode,
-    showEVMModal,
-    setShowEVMModal,
   };
 
   return (
@@ -598,69 +427,4 @@ export const truncateAddress = (
   if (!address) return "";
   if (address.length <= startChars + endChars) return address;
   return address.slice(0, startChars) + "..." + address.slice(-endChars);
-};
-
-// ============================================
-// EVM Wallet Selection Modal Component
-// ============================================
-
-export const EVMWalletModal = () => {
-  const { showEVMModal, setShowEVMModal, availableEVMWallets, connectEVM, isConnectingEVM } = useWallet();
-
-  if (!showEVMModal) return null;
-
-  return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      onClick={() => setShowEVMModal(false)}
-    >
-      <div
-        className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Connect Wallet</h2>
-          <button
-            onClick={() => setShowEVMModal(false)}
-            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
-          >
-            ×
-          </button>
-        </div>
-
-        <p className="text-gray-600 text-sm mb-4">
-          Connect your EVM wallet (Trust Wallet / MetaMask)
-        </p>
-
-        <div className="space-y-3">
-          {availableEVMWallets.map((wallet) => (
-            <button
-              key={wallet.id}
-              onClick={() => connectEVM(wallet.id)}
-              disabled={isConnectingEVM}
-              className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${wallet.installed
-                  ? "border-gray-200 hover:border-rose-500 hover:bg-rose-50"
-                  : "border-dashed border-gray-300 hover:border-gray-400"
-                } ${isConnectingEVM ? "opacity-50 cursor-not-allowed" : ""}`}
-            >
-              <span className="text-2xl">{wallet.icon}</span>
-              <div className="flex-1 text-left">
-                <div className="font-semibold text-gray-900">{wallet.name}</div>
-                <div className="text-xs text-gray-500">
-                  {wallet.installed ? "Detected" : "Not installed - click to open"}
-                </div>
-              </div>
-              {wallet.installed && (
-                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        <p className="text-xs text-gray-500 mt-4 text-center">
-          On mobile? Open this page in your wallet's built-in browser.
-        </p>
-      </div>
-    </div>
-  );
 };

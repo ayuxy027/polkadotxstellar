@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@albedo-link/intent": "^0.13.0",
     "@tailwindcss/vite": "^4.1.17",
     "@talismn/connect-wallets": "^1.2.8",
     "react": "^19.2.1",
