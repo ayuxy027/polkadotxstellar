@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { ethers } from "ethers";
+import { getWallets } from "@talismn/connect-wallets";
 
 interface AccountType {
   address?: string;
@@ -32,6 +33,23 @@ export const WalletContext = createContext<WalletContextType>({
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [accountData, setAccountData] = useState<AccountType>({});
+  const talismanWallets = getWallets();
+  const installedWallets = talismanWallets.filter((wallet) => wallet.installed);
+
+  const talismanWallet = installedWallets.find(
+    (wallet) => wallet.extensionName === "talisman"
+  );
+
+  if (talismanWallet) {
+    talismanWallet.enable("myCoolDapp").then(() => {
+      talismanWallet.subscribeAccounts((accounts) => {
+        // do anything you want with the accounts provided by the wallet
+        console.log("got accounts", accounts);
+      });
+    });
+  }
+
+  console.log("Talisman Wallets: ", installedWallets);
   console.log("Account Data: ", accountData);
   const connectWallet = useCallback(async () => {
     if (!window.ethereum) {
