@@ -1,6 +1,9 @@
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
+import { useWallet } from "../wallet/WalletContext";
 
 const Navbar = () => {
+  const { connectWallet, accountData } = useWallet();
+  console.log("Account Data: ", accountData);
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 pt-4 px-6">
       <div className="max-w-3xl mx-auto">
@@ -10,7 +13,9 @@ const Navbar = () => {
             <div className="w-8 h-8 bg-gradient-to-br from-rose-900 to-pink-900 rounded-full flex items-center justify-center group-hover:from-rose-800 group-hover:to-pink-800 transition-all duration-300">
               <span className="text-rose-50 font-bold text-sm">CR</span>
             </div>
-            <span className="font-semibold text-rose-900 tracking-tight hidden sm:block group-hover:text-rose-950 transition-colors">ChainRepute</span>
+            <span className="font-semibold text-rose-900 tracking-tight hidden sm:block group-hover:text-rose-950 transition-colors">
+              ChainRepute
+            </span>
           </Link>
 
           {/* Navigation Links */}
@@ -41,13 +46,26 @@ const Navbar = () => {
             </Link>
           </div>
 
-          {/* CTA Button */}
-          <Link
-            to="/dashboard"
-            className="text-sm px-4 py-2 bg-gradient-to-r from-rose-900 to-pink-900 text-rose-50 rounded-full transition-all duration-300 ease-out hover:from-rose-800 hover:to-pink-800 hover:shadow-lg hover:shadow-rose-900/30 hover:-translate-y-0.5"
-          >
-            Connect Wallet
-          </Link>
+          {/* Wallet Connection */}
+          {accountData.address ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm px-4 py-2 bg-gradient-to-r from-rose-100 to-pink-100 text-rose-900 rounded-full border border-rose-200">
+                {`${accountData.address.substring(
+                  0,
+                  6
+                )}...${accountData.address.substring(
+                  accountData.address.length - 4
+                )}`}
+              </span>
+            </div>
+          ) : (
+            <button
+              onClick={connectWallet}
+              className="text-sm px-4 py-2 bg-gradient-to-r from-rose-900 to-pink-900 text-rose-50 rounded-full transition-all duration-300 ease-out hover:from-rose-800 hover:to-pink-800 hover:shadow-lg hover:shadow-rose-900/30 hover:-translate-y-0.5"
+            >
+              Connect Wallet
+            </button>
+          )}
         </div>
       </div>
     </nav>
