@@ -5,6 +5,7 @@ import Rewards from "./pages/Rewards";
 import Profile from "./pages/Profile";
 import { WalletProvider } from "./wallet/WalletContext";
 import FetchWalletInfo from "./components/FetchWalletInfo";
+import ReputationSBT from "./components/ReputationSBT";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Route path="/wallet-info" element={<FetchWalletInfo />} />
           <Route path="/rewards" element={<Rewards />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/reputation-sbt" element={<ReputationSBT />} />
         </Routes>
       </BrowserRouter>
     </WalletProvider>
