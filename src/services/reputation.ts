@@ -168,7 +168,7 @@ async function submitTransaction(signedXdr: string) {
  *//**
  * Reputation data structure returned from contract
  */
-export interface ReputationData {
+export interface SBTReputation {
   score: number;
   profile: string;
   stellar_address: string;
@@ -181,7 +181,7 @@ export interface ReputationData {
  */
 export async function getReputation(
   userAddress: string
-): Promise<ReputationData | null> {
+): Promise<SBTReputation | null> {
   try {
     const contract = new Contract(CONTRACT_ID);
     const accountScVal = new Address(userAddress).toScVal();
