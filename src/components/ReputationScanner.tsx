@@ -12,12 +12,13 @@ interface ReputationScannerProps {
 }
 
 // ============================================
-// Stellar Logo Component
+// Trust Wallet Logo Component
 // ============================================
 
-const StellarLogo = ({ className = "w-5 h-5" }: { className?: string }) => (
+const TrustWalletLogo = ({ className = "w-5 h-5" }: { className?: string }) => (
     <svg className={className} viewBox="0 0 32 32" fill="currentColor">
-        <path d="M16 0C7.163 0 0 7.163 0 16s7.163 16 16 16 16-7.163 16-16S24.837 0 16 0zm9.521 22.848l-1.808.947L6.479 14.4v-2.448l1.808-.947L25.52 20.4v2.448zM6.479 9.152l1.808-.947 17.234 9.395v2.448l-1.808.947L6.479 11.6V9.152zm19.042 2.448L8.287 20.995l-1.808-.947v-2.448l17.234-9.395 1.808.947v2.448z" />
+        <path d="M16 2L4 8v8c0 7.732 5.12 14.96 12 17 6.88-2.04 12-9.268 12-17V8L16 2zm0 3.5l9 4.5v6.5c0 5.938-3.84 11.484-9 13.25-5.16-1.766-9-7.312-9-13.25V10l9-4.5z" />
+        <path d="M16 8l-7 3.5v5c0 4.5 2.8 8.5 7 10 4.2-1.5 7-5.5 7-10v-5L16 8z" opacity="0.4" />
     </svg>
 );
 
@@ -38,14 +39,29 @@ const PolkadotLogo = ({ className = "w-5 h-5" }: { className?: string }) => (
 );
 
 // ============================================
+// Chain name helper
+// ============================================
+
+const getChainName = (chainId: number | null): string => {
+    const chains: Record<number, string> = {
+        1: "Ethereum",
+        137: "Polygon",
+        42161: "Arbitrum",
+        10: "Optimism",
+        56: "BNB Chain",
+    };
+    return chainId ? chains[chainId] || `Chain ${chainId}` : "EVM";
+};
+
+// ============================================
 // Scan Progress Steps
 // ============================================
 
-type ScanStep = "idle" | "connecting" | "stellar" | "polkadot" | "analyzing" | "complete" | "error";
+type ScanStep = "idle" | "connecting" | "evm" | "polkadot" | "analyzing" | "complete" | "error";
 
 const scanSteps: { key: ScanStep; label: string; icon: string }[] = [
     { key: "connecting", label: "Connecting to wallets", icon: "🔗" },
-    { key: "stellar", label: "Scanning Stellar activity", icon: "⭐" },
+    { key: "evm", label: "Scanning EVM activity", icon: "💎" },
     { key: "polkadot", label: "Scanning Polkadot activity", icon: "⚫" },
     { key: "analyzing", label: "AI analyzing patterns", icon: "🤖" },
     { key: "complete", label: "Generating reputation", icon: "✅" },
@@ -56,18 +72,22 @@ const scanSteps: { key: ScanStep; label: string; icon: string }[] = [
 // ============================================
 
 const ReputationScanner = ({ onScanComplete, onScanError }: ReputationScannerProps) => {
-    const { stellar, polkadot, connectStellar, connectPolkadot, areBothConnected } = useWallet();
+    const { evm, polkadot, connectPolkadot, areBothConnected, setShowEVMModal } = useWallet();
     const [scanStep, setScanStep] = useState<ScanStep>("idle");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const bothConnected = areBothConnected();
+
+    const handleConnectEVM = () => {
+        setShowEVMModal(true);
+    };
 
     // ============================================
     // Scan Handler
     // ============================================
 
     const handleScan = async () => {
-        if (!stellar.publicKey || !polkadot.address) {
+        if (!evm.address || !polkadot.address) {
             setErrorMessage("Please connect both wallets first");
             return;
         }
@@ -78,7 +98,7 @@ const ReputationScanner = ({ onScanComplete, onScanError }: ReputationScannerPro
         try {
             // Simulate step progression for better UX
             await new Promise((r) => setTimeout(r, 500));
-            setScanStep("stellar");
+            setScanStep("evm");
 
             await new Promise((r) => setTimeout(r, 800));
             setScanStep("polkadot");
@@ -86,8 +106,8 @@ const ReputationScanner = ({ onScanComplete, onScanError }: ReputationScannerPro
             await new Promise((r) => setTimeout(r, 800));
             setScanStep("analyzing");
 
-            // Perform actual scan
-            const result = await scanReputation(stellar.publicKey, polkadot.address);
+            // Perform actual scan - using EVM address instead of Stellar
+            const result = await scanReputation(evm.address, polkadot.address);
 
             setScanStep("complete");
             await new Promise((r) => setTimeout(r, 500));
@@ -111,43 +131,46 @@ const ReputationScanner = ({ onScanComplete, onScanError }: ReputationScannerPro
             <div className="bg-gradient-to-r from-rose-50 to-pink-50 px-6 py-4 border-b border-rose-100">
                 <h2 className="text-xl font-semibold text-rose-900">Cross-Chain Reputation Scanner</h2>
                 <p className="text-sm text-rose-600 mt-1">
-                    Connect your wallets and scan your activity across Stellar and Polkadot
+                    Connect your wallets and scan your activity across EVM chains and Polkadot
                 </p>
             </div>
 
             <div className="p-6">
                 {/* Wallet Connection Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    {/* Stellar Wallet Card */}
+                    {/* EVM Wallet Card */}
                     <div
-                        className={`p-4 rounded-xl border-2 transition-all ${stellar.connected
+                        className={`p-4 rounded-xl border-2 transition-all ${evm.connected
                             ? "border-emerald-200 bg-emerald-50/50"
                             : "border-gray-200 bg-gray-50/50"
                             }`}
                     >
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
-                                <StellarLogo className="w-6 h-6 text-gray-800" />
-                                <span className="font-medium text-gray-900">Stellar</span>
+                                <TrustWalletLogo className="w-6 h-6 text-blue-600" />
+                                <span className="font-medium text-gray-900">EVM Wallet</span>
                             </div>
-                            {stellar.connected && (
+                            {evm.connected && (
                                 <span className="text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full">
                                     Connected
                                 </span>
                             )}
                         </div>
 
-                        {stellar.connected ? (
-                            <div className="font-mono text-sm text-gray-600 bg-white px-3 py-2 rounded-lg">
-                                {truncateAddress(stellar.publicKey || "", 10, 8)}
+                        {evm.connected ? (
+                            <div>
+                                <p className="text-xs text-gray-500 mb-1">{getChainName(evm.chainId)}</p>
+                                <div className="font-mono text-sm text-gray-600 bg-white px-3 py-2 rounded-lg">
+                                    {truncateAddress(evm.address || "", 10, 8)}
+                                </div>
                             </div>
                         ) : (
                             <button
-                                onClick={connectStellar}
-                                className="w-full py-2 px-4 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+                                onClick={handleConnectEVM}
+                                className="w-full py-2 px-4 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                             >
-                                <StellarLogo className="w-4 h-4" />
-                                Connect Freighter
+                                <TrustWalletLogo className="w-4 h-4" />
+                                Connect Wallet
                             </button>
                         )}
                     </div>
@@ -278,7 +301,7 @@ const ReputationScanner = ({ onScanComplete, onScanError }: ReputationScannerPro
                 {/* Helper Text */}
                 {!bothConnected && (
                     <p className="text-center text-sm text-gray-500 mt-4">
-                        Connect both Stellar and Polkadot wallets to scan your cross-chain reputation
+                        Connect both EVM and Polkadot wallets to scan your cross-chain reputation
                     </p>
                 )}
             </div>
