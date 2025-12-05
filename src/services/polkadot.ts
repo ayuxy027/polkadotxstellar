@@ -3,11 +3,12 @@ import { ApiPromise, WsProvider } from "@polkadot/api";
 import { web3FromAddress, web3Enable } from "@polkadot/extension-dapp";
 import type { InjectedAccountWithMeta } from "@polkadot/extension-inject/types";
 
-// Rococo testnet RPC endpoint
-const ROCOCO_RPC = "wss://rococo-rpc.polkadot.io";
+// Pop Network (Paseo) testnet RPC endpoint
+const ROCOCO_RPC = "wss://rpc1.paseo.popnetwork.xyz";
 
-// Contract ID (will be deployed)
-let CONTRACT_ID = "";
+// Contract ID - Using a placeholder for now (will update after deployment)
+// NOTE: Contract build successful, pending testnet token funding for deployment
+let CONTRACT_ID = "5HXWdQVPcyHzBoLRoi9WJfwfQw9vnpr9VnuiGCMA";
 
 export interface PolkadotReputation {
   token_id: number;

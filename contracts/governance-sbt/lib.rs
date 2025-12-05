@@ -104,7 +104,7 @@ mod governance_sbt {
             }
 
             // Increment token ID
-            self.total_supply += 1;
+            self.total_supply = self.total_supply.checked_add(1).ok_or(Error::InvalidScore)?;
             let token_id = self.total_supply;
 
             // Get current block timestamp
