@@ -53,7 +53,7 @@
 ### Backend (AI Agent)
 - **Runtime:** Node.js 18+ or Python 3.10+
 - **Framework:** Express.js (Node) or FastAPI (Python)
-- **AI Provider:** OpenAI API or Groq API
+- **AI Provider:** Groq API or OpenAI API
 - **Blockchain APIs:**
   - Stellar Horizon API (https://horizon-testnet.stellar.org)
   - Subscan API (https://polkadot.api.subscan.io)
@@ -342,7 +342,7 @@ async function calculatePolkadotScore(activity: PolkadotActivity): Promise<numbe
 
 **Purpose:** Analyze behavior patterns and generate reputation scores
 
-**AI Provider:** OpenAI GPT-4 or Groq (Llama 3)
+**AI Provider:** Groq Llama 3 or OpenAI (GPT-4)
 
 **Input:**
 ```typescript
@@ -643,7 +643,7 @@ cargo contract instantiate \
    └─→ Calculate Polkadot Score
    ↓
    Backend: AI Engine
-   ├─→ OpenAI/Groq: Analyze Patterns
+   ├─→ Groq/OpenAI: Analyze Patterns
    ├─→ Generate Profile
    └─→ Calculate Final Score
    ↓
@@ -695,9 +695,9 @@ PORT=3000
 NODE_ENV=development
 
 # AI Provider
-OPENAI_API_KEY=<YOUR_OPENAI_KEY>
-# OR
 GROQ_API_KEY=<YOUR_GROQ_KEY>
+# OR
+OPENAI_API_KEY=<YOUR_OPENAI_KEY>
 
 # Blockchain APIs
 STELLAR_HORIZON_URL=https://horizon-testnet.stellar.org
@@ -842,7 +842,7 @@ interface ErrorResponse {
 - Rate limit: Varies by plan (free tier: 100/day)
 - Strategy: Use Polkadot.js API as fallback
 
-### OpenAI API
+### Groq API
 - Rate limit: Depends on tier
 - Strategy: Use Groq for faster, cheaper inference
 

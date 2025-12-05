@@ -158,7 +158,7 @@ An AI-powered cross-chain identity protocol that:
 
 ### Backend (AI Agent)
 - **Runtime:** Node.js or Python
-- **AI Integration:** OpenAI API or Groq (for speed)
+- **AI Integration:** Groq API or OpenAI (for comparison)
 - **Blockchain APIs:**
   - Stellar Horizon API
   - Subscan API or Polkadot.js API

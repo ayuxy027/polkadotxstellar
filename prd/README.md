@@ -58,7 +58,7 @@ This directory contains comprehensive documentation for **ChainRepute**, a cross
 - Complete technology stack
 - Component specifications (Frontend, Backend, Contracts)
 - Data structures and interfaces
-- API integration details (Stellar Horizon, Subscan, OpenAI)
+- API integration details (Stellar Horizon, Subscan, Groq)
 - Data flow diagrams
 - Environment configuration
 - Error handling strategies
@@ -129,7 +129,7 @@ This directory contains comprehensive documentation for **ChainRepute**, a cross
 - External API integration
   - Stellar Horizon API
   - Subscan API (Polkadot)
-  - OpenAI API
+  - Groq API
 - Backend service implementations
   - Stellar scanner
   - Polkadot scanner
@@ -372,7 +372,6 @@ chainrepute/
 - Contracts UI: https://contracts-ui.substrate.io/
 
 ### AI Resources
-- OpenAI API: https://platform.openai.com/docs
 - Groq API: https://console.groq.com/docs
 
 ---

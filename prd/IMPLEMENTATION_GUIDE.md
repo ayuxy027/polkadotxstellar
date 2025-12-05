@@ -48,7 +48,7 @@ This guide provides a step-by-step implementation plan for building ChainRepute 
 
 **Backend Lead:**
 - [ ] Initialize Node.js project: `npm init -y`
-- [ ] Install dependencies: `npm install express cors dotenv axios openai`
+- [ ] Install dependencies: `npm install express cors dotenv axios groq-sdk @types/node`
 - [ ] Create folder structure:
   ```
   backend/
@@ -160,7 +160,7 @@ This guide provides a step-by-step implementation plan for building ChainRepute 
   - Fetch governance data
   - Fetch staking data
   - Calculate basic score
-- [ ] Integrate AI engine (OpenAI/Groq)
+- [ ] Integrate AI engine (Groq/OpenAI)
   - Create prompt template
   - Call AI API
   - Parse response

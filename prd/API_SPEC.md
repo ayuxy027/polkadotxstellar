@@ -344,14 +344,14 @@ POST /api/scan/staking/nominators
 
 ---
 
-### OpenAI API
+### Groq AI API
 
-**Base URL:** `https://api.openai.com/v1`
+**Base URL:** `https://api.groq.com/openai/v1`
 
 **Headers Required:**
 ```http
 Content-Type: application/json
-Authorization: Bearer YOUR_OPENAI_API_KEY
+Authorization: Bearer YOUR_GROQ_API_KEY
 ```
 
 **Endpoint Used:**
@@ -360,7 +360,7 @@ Authorization: Bearer YOUR_OPENAI_API_KEY
 
 ```json
 {
-  "model": "gpt-4",
+  "model": "llama3-70b-8192",
   "messages": [
     {
       "role": "system",
@@ -376,7 +376,7 @@ Authorization: Bearer YOUR_OPENAI_API_KEY
 }
 ```
 
-**Alternative:** Groq API for faster, cheaper inference
+**Alternative:** OpenAI API for comparison
 
 ---
 
@@ -520,10 +520,10 @@ export async function scanPolkadotActivity(address: string): Promise<PolkadotAct
 ```typescript
 // src/services/ai.ts
 
-import OpenAI from 'openai';
+import { Groq } from 'groq-sdk';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
 });
 
 export async function analyzeReputation(
@@ -553,18 +553,21 @@ Provide:
 Return JSON format only.
 `;
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4',
+  const response = await groq.chat.completions.create({
     messages: [
       { role: 'system', content: 'You are a blockchain reputation analyst. Return only valid JSON.' },
       { role: 'user', content: prompt },
     ],
+    model: 'llama-3.3-70b-versatile',
     temperature: 0.7,
-    max_tokens: 500,
+    max_completion_tokens: 500,
+    top_p: 1,
+    stream: false,
+    stop: null
   });
-  
+
   const result = JSON.parse(response.choices[0].message.content);
-  
+
   return {
     profile: result.profile,
     confidence: result.confidence,
@@ -717,9 +720,9 @@ PORT=3000
 NODE_ENV=development
 
 # AI Provider
-OPENAI_API_KEY=sk-...
-# OR
 GROQ_API_KEY=gsk_...
+# OR
+OPENAI_API_KEY=sk-...
 
 # Blockchain APIs
 STELLAR_HORIZON_URL=https://horizon-testnet.stellar.org
