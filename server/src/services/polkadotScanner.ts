@@ -184,7 +184,7 @@ async function fetchExtrinsicCount(address: string): Promise<number> {
 /**
  * Calculate account age from first activity
  */
-async function calculateAccountAge(address: string): Promise<number> {
+async function calculateAccountAge(address: string): Promise<{ age: number; oldestTransaction: string | null }> {
   // Try to get the first extrinsic to determine account age
   const result = await subscanRequest<{ extrinsics: Array<{ block_timestamp: number }> }>(
     "/api/v2/scan/extrinsics",
@@ -200,10 +200,50 @@ async function calculateAccountAge(address: string): Promise<number> {
     const firstActivity = new Date(result.extrinsics[0].block_timestamp * 1000);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - firstActivity.getTime());
-    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return {
+      age: Math.floor(diffTime / (1000 * 60 * 60 * 24)),
+      oldestTransaction: firstActivity.toISOString(),
+    };
   }
 
-  return 0;
+  return { age: 0, oldestTransaction: null };
+}
+
+/**
+ * Count unique addresses interacted with
+ */
+function countUniqueRecipients(transfers: TransferList | null, address: string): number {
+  if (!transfers?.transfers) return 0;
+  
+  const recipients = new Set<string>();
+  transfers.transfers.forEach((tx) => {
+    if (tx.from === address && tx.to && tx.to !== address) {
+      recipients.add(tx.to);
+    }
+    if (tx.to === address && tx.from && tx.from !== address) {
+      recipients.add(tx.from);
+    }
+  });
+  return recipients.size;
+}
+
+/**
+ * Calculate transaction frequency score
+ */
+function calculateFrequencyScore(extrinsicCount: number, accountAge: number): number {
+  if (extrinsicCount === 0 || accountAge === 0) return 0;
+  
+  // Calculate average extrinsics per week
+  const weeks = Math.max(1, accountAge / 7);
+  const txPerWeek = extrinsicCount / weeks;
+  
+  // Score: 1+ tx/week = 50pts, 3+ = 70pts, 7+ (daily) = 90pts, 14+ = 100pts
+  if (txPerWeek >= 14) return 100;
+  if (txPerWeek >= 7) return 90;
+  if (txPerWeek >= 3) return 70;
+  if (txPerWeek >= 1) return 50;
+  if (txPerWeek >= 0.5) return 30;
+  return Math.floor(txPerWeek * 60);
 }
 
 /**
@@ -219,49 +259,102 @@ function hasVerifiedIdentity(accountInfo: AccountInfo | null): boolean {
 }
 
 /**
- * Calculate Polkadot reputation score (0-550)
+ * Calculate Polkadot Score Breakdown (5 params, 100 pts each = 500 max)
  * 
- * Scoring breakdown:
- * - Governance votes: 0-150 points (10 points per vote, max 15)
- * - Staking amount: 0-120 points (logarithmic scale)
- * - Staking duration: 0-80 points (1 point per week)
- * - Validator nominations: 0-50 points (10 points per nomination)
- * - Account age: 0-80 points (1 point per week, max 80)
- * - Identity verified: 0-70 points (bonus for on-chain identity)
+ * 1. Volume Score (0-100): Total value staked/transferred
+ * 2. Unique Recipients Score (0-100): Distinct addresses (anti-gaming)
+ * 3. Frequency Score (0-100): How often they transact
+ * 4. Account Age Score (0-100): How old the account is
+ * 5. Diversity Score (0-100): Types of activities (stake, vote, nominate, identity)
  */
-function calculatePolkadotScore(activity: Omit<PolkadotActivity, "score">): number {
-  let score = 0;
-
-  // Governance participation score (0-150)
-  const govScore = Math.min(150, activity.governanceVotes * 10);
-  score += govScore;
-
-  // Staking amount score (0-120)
-  // Logarithmic: 10 DOT = 20, 100 = 40, 1000 = 60, 10000 = 80, 100000 = 100, 1000000 = 120
+function calculatePolkadotScoreBreakdown(
+  activity: {
+    stakingAmount: number;
+    uniqueRecipients: number;
+    extrinsicCount: number;
+    accountAge: number;
+    governanceVotes: number;
+    validatorNominations: number;
+    identityVerified: boolean;
+    parachainInteractions: number;
+  }
+): { scoreBreakdown: import("../types/index.js").ChainScoreBreakdown; score: number } {
+  
+  // 1. Volume Score (0-100) - Based on staking amount
+  // Log scale: 1 DOT = 10pts, 10 = 30pts, 100 = 50pts, 1000 = 70pts, 10000 = 90pts, 100000+ = 100pts
+  let volumeScore = 0;
   if (activity.stakingAmount > 0) {
-    const stakingScore = Math.min(120, Math.floor(Math.log10(activity.stakingAmount) * 20));
-    score += stakingScore;
+    if (activity.stakingAmount >= 100000) volumeScore = 100;
+    else if (activity.stakingAmount >= 10000) volumeScore = 90;
+    else if (activity.stakingAmount >= 1000) volumeScore = 70;
+    else if (activity.stakingAmount >= 100) volumeScore = 50;
+    else if (activity.stakingAmount >= 10) volumeScore = 30;
+    else volumeScore = Math.floor(activity.stakingAmount * 10);
   }
 
-  // Staking duration score (0-80)
-  const durationScore = Math.min(80, Math.floor(activity.stakingDuration / 7));
-  score += durationScore;
-
-  // Validator nominations score (0-50)
-  const nominationsScore = Math.min(50, activity.validatorNominations * 10);
-  score += nominationsScore;
-
-  // Account age score (0-80)
-  const ageScore = Math.min(80, Math.floor(activity.accountAge / 7));
-  score += ageScore;
-
-  // Identity verified bonus (0-70)
-  if (activity.identityVerified) {
-    score += 70;
+  // 2. Unique Recipients Score (0-100)
+  let uniqueRecipientsScore = 0;
+  if (activity.uniqueRecipients > 0) {
+    if (activity.uniqueRecipients >= 100) uniqueRecipientsScore = 100;
+    else if (activity.uniqueRecipients >= 50) uniqueRecipientsScore = 85;
+    else if (activity.uniqueRecipients >= 25) uniqueRecipientsScore = 70;
+    else if (activity.uniqueRecipients >= 10) uniqueRecipientsScore = 50;
+    else if (activity.uniqueRecipients >= 5) uniqueRecipientsScore = 30;
+    else uniqueRecipientsScore = activity.uniqueRecipients * 6;
   }
 
-  // Ensure score is within bounds
-  return Math.min(550, Math.max(0, score));
+  // 3. Frequency Score (0-100)
+  const frequencyScore = calculateFrequencyScore(activity.extrinsicCount, activity.accountAge);
+
+  // 4. Account Age Score (0-100)
+  let accountAgeScore = 0;
+  if (activity.accountAge >= 730) accountAgeScore = 100;
+  else if (activity.accountAge >= 365) accountAgeScore = 85;
+  else if (activity.accountAge >= 180) accountAgeScore = 70;
+  else if (activity.accountAge >= 90) accountAgeScore = 50;
+  else if (activity.accountAge >= 30) accountAgeScore = 30;
+  else if (activity.accountAge >= 7) accountAgeScore = 10;
+  else accountAgeScore = Math.floor(activity.accountAge * 1.4);
+
+  // 5. Diversity Score (0-100)
+  // Combines: governance, staking, nominations, identity, parachain
+  let diversityScore = 0;
+  
+  // Governance votes: up to 30pts
+  if (activity.governanceVotes >= 10) diversityScore += 30;
+  else if (activity.governanceVotes >= 5) diversityScore += 20;
+  else if (activity.governanceVotes >= 1) diversityScore += 10;
+  
+  // Validator nominations: up to 25pts
+  if (activity.validatorNominations >= 10) diversityScore += 25;
+  else if (activity.validatorNominations >= 5) diversityScore += 15;
+  else if (activity.validatorNominations >= 1) diversityScore += 10;
+  
+  // Identity verified: 20pts bonus
+  if (activity.identityVerified) diversityScore += 20;
+  
+  // Parachain interactions: up to 25pts
+  if (activity.parachainInteractions >= 20) diversityScore += 25;
+  else if (activity.parachainInteractions >= 10) diversityScore += 15;
+  else if (activity.parachainInteractions >= 5) diversityScore += 10;
+  else if (activity.parachainInteractions >= 1) diversityScore += 5;
+  
+  diversityScore = Math.min(100, diversityScore);
+
+  const scoreBreakdown = {
+    volumeScore,
+    uniqueRecipientsScore,
+    frequencyScore,
+    accountAgeScore,
+    diversityScore,
+  };
+
+  const totalScore = volumeScore + uniqueRecipientsScore + frequencyScore + accountAgeScore + diversityScore;
+
+  return {
+    scoreBreakdown,
+    score: Math.min(500, totalScore),
+  };
 }
 
 /**
@@ -276,12 +369,13 @@ export async function scanPolkadotActivity(address: string): Promise<PolkadotAct
   console.log(`[Polkadot Scanner] Scanning address: ${address}`);
 
   // Fetch all data in parallel for efficiency
-  const [accountInfo, nominatorInfo, votes, accountAge, extrinsicCount] = await Promise.all([
+  const [accountInfo, nominatorInfo, votes, accountAgeData, extrinsicCount, transfers] = await Promise.all([
     fetchAccountInfo(address),
     fetchNominatorInfo(address),
     fetchVotes(address),
     calculateAccountAge(address),
     fetchExtrinsicCount(address),
+    fetchTransfers(address),
   ]);
 
   // Parse staking amount from nominator info
@@ -299,36 +393,49 @@ export async function scanPolkadotActivity(address: string): Promise<PolkadotAct
   const identityVerified = hasVerifiedIdentity(accountInfo);
 
   // Estimate staking duration (simplified - would need historical data for accuracy)
-  // For now, use account age as proxy if staking
-  const stakingDuration = stakingAmount > 0 ? accountAge : 0;
+  const stakingDuration = stakingAmount > 0 ? accountAgeData.age : 0;
 
   // Parachain interactions (estimated from extrinsic count - simplified)
   const parachainInteractions = Math.floor(extrinsicCount / 10);
 
-  const activityData: Omit<PolkadotActivity, "score"> = {
+  // Count unique recipients
+  const uniqueRecipients = countUniqueRecipients(transfers, address);
+
+  // Calculate new 5-param score breakdown
+  const { scoreBreakdown, score } = calculatePolkadotScoreBreakdown({
+    stakingAmount,
+    uniqueRecipients,
+    extrinsicCount,
+    accountAge: accountAgeData.age,
+    governanceVotes,
+    validatorNominations,
+    identityVerified,
+    parachainInteractions,
+  });
+
+  console.log(`[Polkadot Scanner] Completed scan for ${address}:`, {
+    votes: governanceVotes,
+    staked: stakingAmount.toFixed(2),
+    nominations: validatorNominations,
+    uniqueRecipients,
+    age: accountAgeData.age,
+    identity: identityVerified,
+    scoreBreakdown,
+    score,
+  });
+
+  return {
     address,
     governanceVotes,
     stakingAmount,
     stakingDuration,
     validatorNominations,
     parachainInteractions,
-    accountAge,
+    accountAge: accountAgeData.age,
     identityVerified,
-  };
-
-  const score = calculatePolkadotScore(activityData);
-
-  console.log(`[Polkadot Scanner] Completed scan for ${address}:`, {
-    votes: governanceVotes,
-    staked: stakingAmount.toFixed(2),
-    nominations: validatorNominations,
-    age: accountAge,
-    identity: identityVerified,
-    score,
-  });
-
-  return {
-    ...activityData,
+    uniqueRecipients,
+    oldestTransaction: accountAgeData.oldestTransaction,
+    scoreBreakdown,
     score,
   };
 }

@@ -6,7 +6,100 @@ import {
   calculateScoreBreakdown,
   calculateOverallScore,
 } from "../services/aiEngine.js";
-import type { ScanRequest, ScanResponse, ReputationData } from "../types/index.js";
+import type { ScanRequest, ScanResponse, ReputationData, StellarActivity, PolkadotActivity, ChainScoreBreakdown } from "../types/index.js";
+
+// ============================================
+// Demo Mode Elite Data
+// ============================================
+
+const DEMO_STELLAR_ADDRESS = "GBZXN7PIRZGNMHGA7MUUUF4GWPY5AYPV6LY4UV2GL6VJGIQRXFDNMADI";
+const DEMO_POLKADOT_ADDRESS = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
+
+function createEliteDemoData(): ReputationData {
+  const stellarBreakdown: ChainScoreBreakdown = {
+    volumeScore: 95,
+    uniqueRecipientsScore: 88,
+    frequencyScore: 92,
+    accountAgeScore: 98,
+    diversityScore: 94,
+  };
+
+  const polkadotBreakdown: ChainScoreBreakdown = {
+    volumeScore: 90,
+    uniqueRecipientsScore: 85,
+    frequencyScore: 88,
+    accountAgeScore: 95,
+    diversityScore: 87,
+  };
+
+  const stellarScore = Object.values(stellarBreakdown).reduce((a, b) => a + b, 0);
+  const polkadotScore = Object.values(polkadotBreakdown).reduce((a, b) => a + b, 0);
+
+  const stellarActivity: StellarActivity = {
+    address: DEMO_STELLAR_ADDRESS,
+    transactionCount: 1247,
+    totalVolume: 52340,
+    liquidityProvided: 8500,
+    accountAge: 847,
+    assetDiversity: 12,
+    paymentCount: 892,
+    uniqueRecipients: 203,
+    oldestTransaction: "2022-03-15T00:00:00Z",
+    scoreBreakdown: stellarBreakdown,
+    score: stellarScore,
+  };
+
+  const polkadotActivity: PolkadotActivity = {
+    address: DEMO_POLKADOT_ADDRESS,
+    governanceVotes: 47,
+    stakingAmount: 15420,
+    stakingDuration: 523,
+    validatorNominations: 16,
+    parachainInteractions: 28,
+    accountAge: 723,
+    identityVerified: true,
+    uniqueRecipients: 156,
+    oldestTransaction: "2022-05-21T00:00:00Z",
+    scoreBreakdown: polkadotBreakdown,
+    score: polkadotScore,
+  };
+
+  return {
+    overallScore: stellarScore + polkadotScore, // 912
+    profile: "Balanced",
+    stellar: stellarActivity,
+    polkadot: polkadotActivity,
+    breakdown: {
+      transactionConsistency: 94,
+      governanceParticipation: 89,
+      stakingBehavior: 91,
+      liquidityProvision: 85,
+      accountAge: 96,
+      assetDiversity: 90,
+    },
+    aiInsights: {
+      profile: "Balanced",
+      confidence: 95,
+      summary: "An exemplary cross-chain power user with exceptional reputation across both Stellar and Polkadot ecosystems. This account demonstrates sophisticated DeFi engagement, consistent governance participation, and long-term staking commitment.",
+      strengths: [
+        "Elite Tier Status (912/1000)",
+        "Cross-chain Pioneer",
+        "DeFi Native with 52K+ XLM volume",
+        "Active Governance Participant (47 votes)",
+        "Diamond Hands Staker (15K+ DOT)",
+        "Verified On-chain Identity",
+        "High Diversity Score (12 assets)",
+      ],
+      recommendations: [
+        "Maintain your elite status to keep exclusive perks",
+        "Consider becoming a validator to maximize rewards",
+        "Explore new parachain opportunities",
+      ],
+      redFlags: [],
+    },
+    timestamp: Date.now(),
+  };
+}
 
 // ============================================
 // Scan Router
@@ -56,6 +149,23 @@ scanRouter.post("/", async (req: Request, res: Response) => {
     console.log(`[Scan] Starting scan for:
     - Stellar: ${stellarAddress}
     - Polkadot: ${polkadotAddress}`);
+
+    // ============================================
+    // Demo Mode - Return Elite Data for Demo Addresses
+    // ============================================
+
+    const isDemoMode = 
+      stellarAddress === DEMO_STELLAR_ADDRESS && 
+      polkadotAddress === DEMO_POLKADOT_ADDRESS;
+
+    if (isDemoMode) {
+      console.log("[Scan] Demo mode detected - returning elite data");
+      const demoData = createEliteDemoData();
+      return res.json({
+        success: true,
+        data: demoData,
+      } as ScanResponse);
+    }
 
     // ============================================
     // Scan Both Chains in Parallel

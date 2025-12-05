@@ -141,7 +141,7 @@ const Hero = () => {
                       { title: 'Stellar Score', value: '450' },
                       { title: 'Polkadot Score', value: '300' },
                       { title: 'Unified Score', value: '750' }
-                    ].map((stat, i) => (
+                    ].map((stat) => (
                       <div key={stat.title} className="bg-gradient-to-br from-rose-50 to-pink-50 border border-rose-200/50 rounded-xl p-5 hover:shadow-md transition-shadow">
                         <div className="w-10 h-10 bg-gradient-to-br from-rose-200 to-pink-200 rounded-lg mb-4"></div>
                         <div className="h-3 bg-gradient-to-r from-rose-200 to-pink-200 rounded w-20 mb-2"></div>
@@ -161,7 +161,7 @@ const Hero = () => {
                         { chain: 'Polkadot', status: 'Verified' },
                         { chain: 'Identity', status: '750/1000' },
                         { chain: 'Profile', status: 'Balanced' }
-                      ].map((item, i) => (
+                      ].map((item) => (
                         <div key={item.chain} className="flex items-center gap-4">
                           <div className="w-8 h-8 bg-gradient-to-br from-rose-200 to-pink-200 rounded-lg"></div>
                           <div className="flex-1 font-medium text-rose-700">{item.chain}</div>

@@ -37,6 +37,15 @@ export type ReputationProfile =
   | "Balanced"
   | "Newcomer";
 
+// 5-Parameter Scoring (100 points each = 500 per chain)
+export interface ChainScoreBreakdown {
+  volumeScore: number;           // 0-100: Total token volume transacted
+  uniqueRecipientsScore: number; // 0-100: Distinct addresses interacted with
+  frequencyScore: number;        // 0-100: Transaction frequency/consistency
+  accountAgeScore: number;       // 0-100: How old the account is
+  diversityScore: number;        // 0-100: Activity diversity (types of actions)
+}
+
 export interface StellarActivity {
   address: string;
   transactionCount: number;
@@ -45,7 +54,10 @@ export interface StellarActivity {
   accountAge: number;
   assetDiversity: number;
   paymentCount: number;
-  score: number;
+  uniqueRecipients: number;
+  oldestTransaction: string | null;
+  scoreBreakdown: ChainScoreBreakdown;
+  score: number; // 0-500
 }
 
 export interface PolkadotActivity {
@@ -57,9 +69,13 @@ export interface PolkadotActivity {
   parachainInteractions: number;
   accountAge: number;
   identityVerified: boolean;
-  score: number;
+  uniqueRecipients: number;
+  oldestTransaction: string | null;
+  scoreBreakdown: ChainScoreBreakdown;
+  score: number; // 0-500
 }
 
+// Legacy breakdown for AI insights
 export interface ScoreBreakdown {
   transactionConsistency: number;
   governanceParticipation: number;
@@ -76,6 +92,102 @@ export interface AIInsights {
   strengths: string[];
   recommendations: string[];
   redFlags: string[];
+}
+
+// ============================================
+// Reward Tiers System
+// ============================================
+
+export type RewardTier = 1 | 2 | 3 | 4 | 5;
+
+export interface TierInfo {
+  tier: RewardTier;
+  name: string;
+  minScore: number;
+  maxScore: number;
+  badge: string;
+  badgeEmoji: string;
+  rewards: string[];
+  perks: string[];
+  color: string;
+}
+
+export const REWARD_TIERS: TierInfo[] = [
+  {
+    tier: 1,
+    name: "Newcomer",
+    minScore: 0,
+    maxScore: 199,
+    badge: "Bronze",
+    badgeEmoji: "🥉",
+    rewards: ["Basic profile page", "Community access"],
+    perks: ["View your cross-chain reputation"],
+    color: "amber",
+  },
+  {
+    tier: 2,
+    name: "Explorer",
+    minScore: 200,
+    maxScore: 399,
+    badge: "Silver",
+    badgeEmoji: "🥈",
+    rewards: ["5% partner discounts", "Explorer badge NFT"],
+    perks: ["Priority customer support", "Monthly newsletter"],
+    color: "slate",
+  },
+  {
+    tier: 3,
+    name: "Trusted",
+    minScore: 400,
+    maxScore: 599,
+    badge: "Gold",
+    badgeEmoji: "🥇",
+    rewards: ["10% partner discounts", "Trusted badge NFT", "DAO voting eligibility"],
+    perks: ["Early feature access", "Exclusive Discord channel"],
+    color: "yellow",
+  },
+  {
+    tier: 4,
+    name: "Diamond",
+    minScore: 600,
+    maxScore: 799,
+    badge: "Diamond",
+    badgeEmoji: "💎",
+    rewards: ["20% partner discounts", "Diamond badge NFT", "Enhanced DAO voting power"],
+    perks: ["Beta tester access", "Direct team communication", "Whitelist priority"],
+    color: "cyan",
+  },
+  {
+    tier: 5,
+    name: "Elite",
+    minScore: 800,
+    maxScore: 1000,
+    badge: "Elite",
+    badgeEmoji: "👑",
+    rewards: [
+      "30% partner discounts",
+      "Exclusive Elite NFT",
+      "Twitter/X Affiliate Badge",
+      "Maximum DAO voting power",
+    ],
+    perks: [
+      "VIP community access",
+      "Partner collaboration opportunities",
+      "Revenue sharing eligibility",
+      "Governance proposal rights",
+    ],
+    color: "rose",
+  },
+];
+
+// Helper function to get tier from score
+export function getTierFromScore(score: number): TierInfo {
+  for (const tier of REWARD_TIERS) {
+    if (score >= tier.minScore && score <= tier.maxScore) {
+      return tier;
+    }
+  }
+  return REWARD_TIERS[0]; // Default to Tier 1
 }
 
 export interface HealthResponse {

@@ -164,23 +164,35 @@ Analyze this cross-chain Web3 user activity and provide insights:
 **Overall Score:** ${overallScore}/1000
 **Profile Type:** ${profile}
 
-**Stellar Activity:**
+**Stellar Activity (Score: ${stellar.score}/500):**
 - Transactions: ${stellar.transactionCount}
 - Total Volume: ${stellar.totalVolume.toFixed(2)} XLM
+- Unique Recipients: ${stellar.uniqueRecipients}
 - Payments: ${stellar.paymentCount}
 - Assets Held: ${stellar.assetDiversity}
 - Account Age: ${stellar.accountAge} days
-- Stellar Score: ${stellar.score}/450
+- Score Breakdown:
+  - Volume: ${stellar.scoreBreakdown.volumeScore}/100
+  - Unique Recipients: ${stellar.scoreBreakdown.uniqueRecipientsScore}/100
+  - Frequency: ${stellar.scoreBreakdown.frequencyScore}/100
+  - Account Age: ${stellar.scoreBreakdown.accountAgeScore}/100
+  - Diversity: ${stellar.scoreBreakdown.diversityScore}/100
 
-**Polkadot Activity:**
+**Polkadot Activity (Score: ${polkadot.score}/500):**
 - Governance Votes: ${polkadot.governanceVotes}
 - Staking Amount: ${polkadot.stakingAmount.toFixed(2)} DOT
 - Validator Nominations: ${polkadot.validatorNominations}
+- Unique Recipients: ${polkadot.uniqueRecipients}
 - Identity Verified: ${polkadot.identityVerified ? "Yes" : "No"}
 - Account Age: ${polkadot.accountAge} days
-- Polkadot Score: ${polkadot.score}/550
+- Score Breakdown:
+  - Volume: ${polkadot.scoreBreakdown.volumeScore}/100
+  - Unique Recipients: ${polkadot.scoreBreakdown.uniqueRecipientsScore}/100
+  - Frequency: ${polkadot.scoreBreakdown.frequencyScore}/100
+  - Account Age: ${polkadot.scoreBreakdown.accountAgeScore}/100
+  - Diversity: ${polkadot.scoreBreakdown.diversityScore}/100
 
-**Score Breakdown:**
+**Legacy Breakdown (for compatibility):**
 - Transaction Consistency: ${breakdown.transactionConsistency}/200
 - Governance Participation: ${breakdown.governanceParticipation}/250
 - Staking Behavior: ${breakdown.stakingBehavior}/200
@@ -336,13 +348,13 @@ function generateMockInsights(
 
 /**
  * Calculate overall reputation score from Stellar and Polkadot scores
+ * New scoring: Stellar (500 max) + Polkadot (500 max) = 1000 max
  */
 export function calculateOverallScore(
   stellarScore: number,
   polkadotScore: number
 ): number {
-  // Combined score out of 1000
-  // Stellar max: 450, Polkadot max: 550
+  // Combined score out of 1000 (500 per chain)
   return Math.min(1000, stellarScore + polkadotScore);
 }
 

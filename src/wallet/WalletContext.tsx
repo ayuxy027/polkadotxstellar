@@ -227,8 +227,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       console.log("[Stellar] Connected via Albedo:", result.pubkey);
 
-    } catch (err: any) {
-      const message = err.message || "Failed to connect Stellar wallet";
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to connect Stellar wallet";
       console.error("[Stellar] Connection error:", message);
       setStellarError(message);
     } finally {

@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LandingPage from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
+import Rewards from "./pages/Rewards";
+import Profile from "./pages/Profile";
 import { WalletProvider } from "./wallet/WalletContext";
 import FetchWalletInfo from "./components/FetchWalletInfo";
 
@@ -16,6 +18,8 @@ function App() {
           <Route path="/login" element={<LandingPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/wallet-info" element={<FetchWalletInfo />} />
+          <Route path="/rewards" element={<Rewards />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </BrowserRouter>
     </WalletProvider>

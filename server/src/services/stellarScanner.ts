@@ -113,50 +113,137 @@ function countUniqueAssets(account: HorizonAccountResponse): number {
 }
 
 /**
- * Calculate Stellar reputation score (0-450)
- * 
- * Scoring breakdown:
- * - Transaction count: 0-100 points (1 point per 10 transactions, max 1000)
- * - Transaction volume: 0-100 points (based on total volume)
- * - Payment count: 0-80 points (activity indicator)
- * - Account age: 0-70 points (1 point per week, max 70)
- * - Asset diversity: 0-50 points (5 points per unique asset, max 10)
- * - Liquidity provision: 0-50 points (bonus for LP participation)
+ * Count unique recipients from payments (anti-gaming metric)
  */
-function calculateStellarScore(activity: Omit<StellarActivity, "score">): number {
-  let score = 0;
+function countUniqueRecipients(payments: HorizonPayment[], address: string): number {
+  const recipients = new Set<string>();
+  payments.forEach((payment) => {
+    if (payment.from === address && payment.to && payment.to !== address) {
+      recipients.add(payment.to);
+    }
+    if (payment.to === address && payment.from && payment.from !== address) {
+      recipients.add(payment.from);
+    }
+  });
+  return recipients.size;
+}
 
-  // Transaction count score (0-100)
-  const txScore = Math.min(100, Math.floor(activity.transactionCount / 10));
-  score += txScore;
+/**
+ * Get oldest transaction date
+ */
+function getOldestTransaction(transactions: HorizonTransaction[]): string | null {
+  if (transactions.length === 0) return null;
+  // Sort by created_at ascending and get the first one
+  const sorted = [...transactions].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+  return sorted[0]?.created_at || null;
+}
 
-  // Volume score (0-100)
-  // Logarithmic scale: 100 XLM = 20 points, 1000 = 40, 10000 = 60, 100000 = 80, 1000000 = 100
+/**
+ * Calculate transaction frequency score
+ * Based on how regularly the user transacts
+ */
+function calculateFrequencyScore(transactions: HorizonTransaction[], accountAge: number): number {
+  if (transactions.length === 0 || accountAge === 0) return 0;
+  
+  // Calculate average transactions per week
+  const weeks = Math.max(1, accountAge / 7);
+  const txPerWeek = transactions.length / weeks;
+  
+  // Score: 1+ tx/week = 50pts, 3+ = 70pts, 7+ (daily) = 90pts, 14+ = 100pts
+  if (txPerWeek >= 14) return 100;
+  if (txPerWeek >= 7) return 90;
+  if (txPerWeek >= 3) return 70;
+  if (txPerWeek >= 1) return 50;
+  if (txPerWeek >= 0.5) return 30;
+  return Math.floor(txPerWeek * 60); // Less than 0.5/week
+}
+
+/**
+ * Calculate Stellar Score Breakdown (5 params, 100 pts each = 500 max)
+ * 
+ * 1. Volume Score (0-100): Total value transacted
+ * 2. Unique Recipients Score (0-100): Distinct addresses (anti-gaming)
+ * 3. Frequency Score (0-100): How often they transact
+ * 4. Account Age Score (0-100): How old the account is
+ * 5. Diversity Score (0-100): Types of activities/assets
+ */
+function calculateStellarScoreBreakdown(
+  activity: {
+    totalVolume: number;
+    uniqueRecipients: number;
+    transactionCount: number;
+    accountAge: number;
+    assetDiversity: number;
+    liquidityProvided: number;
+  },
+  transactions: HorizonTransaction[]
+): { scoreBreakdown: import("../types/index.js").ChainScoreBreakdown; score: number } {
+  
+  // 1. Volume Score (0-100)
+  // Log scale: 10 XLM = 20pts, 100 = 40pts, 1000 = 60pts, 10000 = 80pts, 100000+ = 100pts
+  let volumeScore = 0;
   if (activity.totalVolume > 0) {
-    const volumeScore = Math.min(100, Math.floor(Math.log10(activity.totalVolume) * 20));
-    score += volumeScore;
+    volumeScore = Math.min(100, Math.floor(Math.log10(activity.totalVolume + 1) * 20));
   }
 
-  // Payment count score (0-80)
-  const paymentScore = Math.min(80, Math.floor(activity.paymentCount / 5));
-  score += paymentScore;
+  // 2. Unique Recipients Score (0-100)
+  // 1 recipient = 10pts, 5 = 30pts, 10 = 50pts, 25 = 70pts, 50 = 85pts, 100+ = 100pts
+  let uniqueRecipientsScore = 0;
+  if (activity.uniqueRecipients > 0) {
+    if (activity.uniqueRecipients >= 100) uniqueRecipientsScore = 100;
+    else if (activity.uniqueRecipients >= 50) uniqueRecipientsScore = 85;
+    else if (activity.uniqueRecipients >= 25) uniqueRecipientsScore = 70;
+    else if (activity.uniqueRecipients >= 10) uniqueRecipientsScore = 50;
+    else if (activity.uniqueRecipients >= 5) uniqueRecipientsScore = 30;
+    else uniqueRecipientsScore = activity.uniqueRecipients * 10;
+  }
 
-  // Account age score (0-70)
-  const ageScore = Math.min(70, Math.floor(activity.accountAge / 7));
-  score += ageScore;
+  // 3. Frequency Score (0-100)
+  const frequencyScore = calculateFrequencyScore(transactions, activity.accountAge);
 
-  // Asset diversity score (0-50)
-  const diversityScore = Math.min(50, activity.assetDiversity * 5);
-  score += diversityScore;
+  // 4. Account Age Score (0-100)
+  // 7 days = 10pts, 30 = 30pts, 90 = 50pts, 180 = 70pts, 365 = 85pts, 730+ = 100pts
+  let accountAgeScore = 0;
+  if (activity.accountAge >= 730) accountAgeScore = 100;
+  else if (activity.accountAge >= 365) accountAgeScore = 85;
+  else if (activity.accountAge >= 180) accountAgeScore = 70;
+  else if (activity.accountAge >= 90) accountAgeScore = 50;
+  else if (activity.accountAge >= 30) accountAgeScore = 30;
+  else if (activity.accountAge >= 7) accountAgeScore = 10;
+  else accountAgeScore = Math.floor(activity.accountAge * 1.4);
 
-  // Liquidity provision score (0-50)
+  // 5. Diversity Score (0-100)
+  // Combines: asset diversity + LP activity
+  // 1 asset = 10pts, 3 = 30pts, 5 = 50pts, 10 = 70pts, 15+ = 85pts
+  // + LP bonus: up to 15pts for liquidity provision
+  let diversityScore = 0;
+  if (activity.assetDiversity >= 15) diversityScore = 85;
+  else if (activity.assetDiversity >= 10) diversityScore = 70;
+  else if (activity.assetDiversity >= 5) diversityScore = 50;
+  else if (activity.assetDiversity >= 3) diversityScore = 30;
+  else diversityScore = activity.assetDiversity * 10;
+  
+  // LP bonus
   if (activity.liquidityProvided > 0) {
-    const lpScore = Math.min(50, Math.floor(Math.log10(activity.liquidityProvided) * 10));
-    score += lpScore;
+    diversityScore = Math.min(100, diversityScore + Math.min(15, Math.floor(Math.log10(activity.liquidityProvided) * 5)));
   }
 
-  // Ensure score is within bounds
-  return Math.min(450, Math.max(0, score));
+  const scoreBreakdown = {
+    volumeScore,
+    uniqueRecipientsScore,
+    frequencyScore,
+    accountAgeScore,
+    diversityScore,
+  };
+
+  const totalScore = volumeScore + uniqueRecipientsScore + frequencyScore + accountAgeScore + diversityScore;
+
+  return {
+    scoreBreakdown,
+    score: Math.min(500, totalScore),
+  };
 }
 
 /**
@@ -184,6 +271,15 @@ export async function scanStellarActivity(address: string): Promise<StellarActiv
       accountAge: 0,
       assetDiversity: 0,
       paymentCount: 0,
+      uniqueRecipients: 0,
+      oldestTransaction: null,
+      scoreBreakdown: {
+        volumeScore: 0,
+        uniqueRecipientsScore: 0,
+        frequencyScore: 0,
+        accountAgeScore: 0,
+        diversityScore: 0,
+      },
       score: 0,
     };
   }
@@ -198,6 +294,8 @@ export async function scanStellarActivity(address: string): Promise<StellarActiv
   const accountAge = calculateAccountAge(account);
   const totalVolume = calculateTotalVolume(payments, address);
   const assetDiversity = countUniqueAssets(account);
+  const uniqueRecipients = countUniqueRecipients(payments, address);
+  const oldestTransaction = getOldestTransaction(transactions);
   const paymentCount = payments.filter(
     (p) => p.type === "payment" || p.type === "path_payment_strict_receive"
   ).length;
@@ -206,7 +304,30 @@ export async function scanStellarActivity(address: string): Promise<StellarActiv
   // (simplified - in production, would check LP operations)
   const liquidityProvided = 0; // TODO: Implement LP detection
 
-  const activityData: Omit<StellarActivity, "score"> = {
+  // Calculate new 5-param score breakdown
+  const { scoreBreakdown, score } = calculateStellarScoreBreakdown(
+    {
+      totalVolume,
+      uniqueRecipients,
+      transactionCount: transactions.length,
+      accountAge,
+      assetDiversity,
+      liquidityProvided,
+    },
+    transactions
+  );
+
+  console.log(`[Stellar Scanner] Completed scan for ${address}:`, {
+    transactions: transactions.length,
+    payments: paymentCount,
+    volume: totalVolume.toFixed(2),
+    uniqueRecipients,
+    age: accountAge,
+    scoreBreakdown,
+    score,
+  });
+
+  return {
     address,
     transactionCount: transactions.length,
     totalVolume,
@@ -214,20 +335,9 @@ export async function scanStellarActivity(address: string): Promise<StellarActiv
     accountAge,
     assetDiversity,
     paymentCount,
-  };
-
-  const score = calculateStellarScore(activityData);
-
-  console.log(`[Stellar Scanner] Completed scan for ${address}:`, {
-    transactions: transactions.length,
-    payments: paymentCount,
-    volume: totalVolume.toFixed(2),
-    age: accountAge,
-    score,
-  });
-
-  return {
-    ...activityData,
+    uniqueRecipients,
+    oldestTransaction,
+    scoreBreakdown,
     score,
   };
 }

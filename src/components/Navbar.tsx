@@ -83,10 +83,16 @@ const Navbar = () => {
               Dashboard
             </Link>
             <Link
-              to="/reputation"
+              to="/rewards"
               className="text-sm text-rose-700 px-3 py-1.5 rounded-full transition-all duration-300 ease-out hover:bg-rose-100/50 hover:text-rose-900 hidden md:block"
             >
-              Scan
+              Rewards
+            </Link>
+            <Link
+              to="/profile"
+              className="text-sm text-rose-700 px-3 py-1.5 rounded-full transition-all duration-300 ease-out hover:bg-rose-100/50 hover:text-rose-900 hidden md:block"
+            >
+              Profile
             </Link>
           </div>
 
