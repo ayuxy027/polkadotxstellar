@@ -121,8 +121,8 @@ const ReputationScanner = ({ onScanComplete, onScanError }: ReputationScannerPro
                     {/* Stellar Wallet Card */}
                     <div
                         className={`p-4 rounded-xl border-2 transition-all ${stellar.connected
-                                ? "border-emerald-200 bg-emerald-50/50"
-                                : "border-gray-200 bg-gray-50/50"
+                            ? "border-emerald-200 bg-emerald-50/50"
+                            : "border-gray-200 bg-gray-50/50"
                             }`}
                     >
                         <div className="flex items-center justify-between mb-3">
@@ -155,8 +155,8 @@ const ReputationScanner = ({ onScanComplete, onScanError }: ReputationScannerPro
                     {/* Polkadot Wallet Card */}
                     <div
                         className={`p-4 rounded-xl border-2 transition-all ${polkadot.connected
-                                ? "border-emerald-200 bg-emerald-50/50"
-                                : "border-gray-200 bg-gray-50/50"
+                            ? "border-emerald-200 bg-emerald-50/50"
+                            : "border-gray-200 bg-gray-50/50"
                             }`}
                     >
                         <div className="flex items-center justify-between mb-3">
@@ -177,11 +177,11 @@ const ReputationScanner = ({ onScanComplete, onScanError }: ReputationScannerPro
                             </div>
                         ) : (
                             <button
-                                onClick={connectPolkadot}
+                                onClick={() => connectPolkadot()}
                                 className="w-full py-2 px-4 bg-pink-600 text-white text-sm rounded-lg hover:bg-pink-700 transition-colors flex items-center justify-center gap-2"
                             >
                                 <PolkadotLogo className="w-4 h-4" />
-                                Connect Polkadot.js
+                                Connect Talisman
                             </button>
                         )}
                     </div>
@@ -205,10 +205,10 @@ const ReputationScanner = ({ onScanComplete, onScanError }: ReputationScannerPro
                                     >
                                         <div
                                             className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${isComplete
-                                                    ? "bg-emerald-100 text-emerald-600"
-                                                    : isActive
-                                                        ? "bg-blue-100 text-blue-600 animate-pulse"
-                                                        : "bg-gray-100 text-gray-400"
+                                                ? "bg-emerald-100 text-emerald-600"
+                                                : isActive
+                                                    ? "bg-blue-100 text-blue-600 animate-pulse"
+                                                    : "bg-gray-100 text-gray-400"
                                                 }`}
                                         >
                                             {isComplete ? "✓" : step.icon}
@@ -249,8 +249,8 @@ const ReputationScanner = ({ onScanComplete, onScanError }: ReputationScannerPro
                     onClick={handleScan}
                     disabled={!bothConnected || (scanStep !== "idle" && scanStep !== "error")}
                     className={`w-full py-4 px-6 rounded-xl font-semibold text-white transition-all duration-300 ${bothConnected
-                            ? "bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 hover:shadow-lg hover:shadow-rose-200 hover:-translate-y-0.5"
-                            : "bg-gray-300 cursor-not-allowed"
+                        ? "bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 hover:shadow-lg hover:shadow-rose-200 hover:-translate-y-0.5"
+                        : "bg-gray-300 cursor-not-allowed"
                         } disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none`}
                 >
                     {scanStep !== "idle" && scanStep !== "error" ? (
