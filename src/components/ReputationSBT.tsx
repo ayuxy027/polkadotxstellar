@@ -128,14 +128,14 @@ const ReputationSBT: React.FC = () => {
     }, 60000); // 60 second timeout
 
     try {
-      console.log("🎨 Minting SBT with:", { 
-        address: stellar.address, 
-        score: mintScore, 
-        profile: mintProfile 
+      console.log("🎨 Minting SBT with:", {
+        address: stellar.address,
+        score: mintScore,
+        profile: mintProfile
       });
-      
+
       const result = await mintSBT(stellar.address, mintScore, mintProfile);
-      
+
       clearTimeout(timeoutId);
 
       if (result.success) {
@@ -187,9 +187,9 @@ const ReputationSBT: React.FC = () => {
 
     try {
       console.log("📈 Updating score to:", newScore);
-      
+
       const result = await updateScore(stellar.address, newScore);
-      
+
       clearTimeout(timeoutId);
 
       if (result.success) {
@@ -318,8 +318,8 @@ const ReputationSBT: React.FC = () => {
               <div className="text-right">
                 <span
                   className={`px-3 py-1 rounded-full text-sm font-medium ${hasNFT
-                      ? "bg-green-100 text-green-800"
-                      : "bg-gray-100 text-gray-600"
+                    ? "bg-green-100 text-green-800"
+                    : "bg-gray-100 text-gray-600"
                     }`}
                 >
                   {hasNFT ? "✓ Has SBT" : "No SBT"}
