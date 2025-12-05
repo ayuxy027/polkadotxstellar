@@ -1,144 +1,213 @@
 // src/components/ReputationSBT.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
-  getCredential,
-  mintCredential,
-  revokeCredential,
+  getReputation,
+  mintSBT,
+  updateScore,
+  verifyOwnership,
+  getTotalSupply,
+  ReputationData,
 } from "../services/reputation";
 import { useWallet } from "../wallet/WalletContext";
 
-interface SBT {
-  id: string;
-  level: string;
-  score: number;
-  issuedAt: string;
-  metadataHash: string;
-  revoked: boolean;
-}
-
 const ReputationSBT: React.FC = () => {
   const { stellar, connectStellar, stellarError } = useWallet();
-  const [sbtList, setSbtList] = useState<SBT[]>([]);
+
+  // State
+  const [reputation, setReputation] = useState<ReputationData | null>(null);
+  const [hasNFT, setHasNFT] = useState<boolean>(false);
+  const [totalSupply, setTotalSupply] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [newSbtLevel, setNewSbtLevel] = useState<string>("Bronze");
-  const [newSbtScore, setNewSbtScore] = useState<number>(0);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Auto-fetch SBTs when wallet is connected
+  // Form state for minting
+  const [mintScore, setMintScore] = useState<number>(500);
+  const [mintProfile, setMintProfile] = useState<string>("Trader");
+
+  // Form state for updating
+  const [newScore, setNewScore] = useState<number>(500);
+
+  // Get level based on score
+  const getLevel = (score: number): string => {
+    if (score >= 900) return "Platinum";
+    if (score >= 600) return "Gold";
+    if (score >= 300) return "Silver";
+    return "Bronze";
+  };
+
+  // Get level color classes
+  const getLevelClasses = (level: string): string => {
+    switch (level) {
+      case "Platinum":
+        return "bg-purple-100 text-purple-800 border-purple-300";
+      case "Gold":
+        return "bg-yellow-100 text-yellow-800 border-yellow-300";
+      case "Silver":
+        return "bg-gray-200 text-gray-800 border-gray-400";
+      default:
+        return "bg-amber-100 text-amber-800 border-amber-300";
+    }
+  };
+
+  // Fetch all data
+  const fetchData = useCallback(async () => {
+    if (!stellar.address) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const [reputationData, ownership, supply] = await Promise.all([
+        getReputation(stellar.address),
+        verifyOwnership(stellar.address),
+        getTotalSupply(stellar.address),
+      ]);
+
+      setReputation(reputationData);
+      setHasNFT(ownership);
+      setTotalSupply(supply);
+
+      if (reputationData) {
+        setNewScore(reputationData.score);
+      }
+    } catch (err) {
+      console.error("Error fetching data:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [stellar.address]);
+
+  // Auto-fetch when wallet connects
   useEffect(() => {
     if (stellar.connected && stellar.address) {
-      fetchSBTs(stellar.address);
+      fetchData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stellar.connected, stellar.address]);
+  }, [stellar.connected, stellar.address, fetchData]);
 
-  // Fetch SBTs from the Soroban contract
-  const fetchSBTs = async (address: string) => {
+  // Clear messages after 5 seconds
+  useEffect(() => {
+    if (successMsg) {
+      const timer = setTimeout(() => setSuccessMsg(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMsg]);
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  // Handle mint
+  const handleMint = async () => {
+    if (!stellar.address) {
+      setError("Please connect your wallet first");
+      return;
+    }
+
+    if (hasNFT) {
+      setError("You already have a Reputation SBT. Use Update Score instead.");
+      return;
+    }
+
+    if (mintScore < 0 || mintScore > 1000) {
+      setError("Score must be between 0 and 1000");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
-    try {
-      const credential = await getCredential(address);
+    setSuccessMsg(null);
 
-      if (!credential) {
-        // No credential found
-        setSbtList([]);
-        return;
-      }
-
-      // Parse metadata hash to extract level and score if available
-      // For now, we'll create a basic SBT from the credential
-      const liveSBT: SBT = {
-        id: credential.metadataHash.substring(0, 8), // Use first 8 chars of hash as ID
-        level: newSbtLevel || "Bronze", // Could be stored in metadata
-        score: newSbtScore || 0, // Could be stored in metadata
-        issuedAt: new Date().toISOString(),
-        metadataHash: credential.metadataHash,
-        revoked: false,
-      };
-
-      setSbtList([liveSBT]);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to fetch SBTs";
-      setError(errorMessage);
-      console.error(err);
-      setSbtList([]);
-    } finally {
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
       setIsLoading(false);
-    }
-  };
+      setError("Transaction timed out. Please check your wallet and try again.");
+    }, 60000); // 60 second timeout
 
-  const handleMintSBT = async () => {
-    if (!stellar.address || !stellar.connected) {
-      setError("Please connect your Stellar wallet first");
-      return;
-    }
-
-    if (!newSbtLevel || newSbtScore <= 0) {
-      setError("Please fill all fields correctly");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
     try {
-      // Create metadata hash from level, score, and timestamp
-      const metadata = JSON.stringify({
-        level: newSbtLevel,
-        score: newSbtScore,
-        timestamp: Date.now(),
+      console.log("🎨 Minting SBT with:", { 
+        address: stellar.address, 
+        score: mintScore, 
+        profile: mintProfile 
       });
-      // Convert string to hex
-      const metadataHash = Array.from(new TextEncoder().encode(metadata))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-
-      const result = await mintCredential(stellar.address, metadataHash);
+      
+      const result = await mintSBT(stellar.address, mintScore, mintProfile);
+      
+      clearTimeout(timeoutId);
 
       if (result.success) {
-        // Refresh SBT list after successful mint
-        await fetchSBTs(stellar.address);
-        setNewSbtLevel("Bronze");
-        setNewSbtScore(0);
-        setError(null);
+        setSuccessMsg(
+          `🎉 SBT Minted Successfully! TX: ${result.hash?.substring(0, 12)}...`
+        );
+        setTimeout(() => fetchData(), 3000);
       } else {
-        throw new Error("Minting failed");
+        setError("Minting failed. Please try again.");
       }
     } catch (err) {
+      clearTimeout(timeoutId);
       const errorMessage =
-        err instanceof Error ? err.message : "Failed to mint SBT";
+        err instanceof Error ? err.message : "Failed to mint SBT. Please try again.";
       setError(errorMessage);
-      console.error(err);
+      console.error("❌ Mint error:", err);
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
     }
   };
 
-  const handleRevokeSBT = async () => {
-    if (!stellar.address || !stellar.connected) {
-      setError("Please connect your Stellar wallet first");
+  // Handle score update
+  const handleUpdateScore = async () => {
+    if (!stellar.address) {
+      setError("Please connect your wallet first");
       return;
     }
 
-    if (!window.confirm("Are you sure you want to revoke this SBT?")) return;
+    if (!hasNFT) {
+      setError("You need to mint an SBT first before updating score.");
+      return;
+    }
+
+    if (newScore < 0 || newScore > 1000) {
+      setError("Score must be between 0 and 1000");
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
+    setSuccessMsg(null);
+
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      setIsLoading(false);
+      setError("Transaction timed out. Please check your wallet and try again.");
+    }, 60000); // 60 second timeout
+
     try {
-      const result = await revokeCredential(stellar.address);
+      console.log("📈 Updating score to:", newScore);
+      
+      const result = await updateScore(stellar.address, newScore);
+      
+      clearTimeout(timeoutId);
 
       if (result.success) {
-        // Refresh SBT list after successful revoke
-        await fetchSBTs(stellar.address);
+        setSuccessMsg(
+          `✅ Score Updated to ${newScore}! TX: ${result.hash?.substring(0, 12)}...`
+        );
+        setTimeout(() => fetchData(), 3000);
       } else {
-        throw new Error("Revocation failed");
+        setError("Score update failed. Please try again.");
       }
     } catch (err) {
+      clearTimeout(timeoutId);
       const errorMessage =
-        err instanceof Error ? err.message : "Failed to revoke SBT";
+        err instanceof Error ? err.message : "Failed to update score. Please try again.";
       setError(errorMessage);
-      console.error(err);
+      console.error("❌ Update error:", err);
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
     }
   };
@@ -146,178 +215,280 @@ const ReputationSBT: React.FC = () => {
   // Connect wallet handler
   const handleConnectWallet = async () => {
     try {
+      setError(null);
       await connectStellar();
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to connect wallet";
       setError(errorMessage);
-      console.error(err);
     }
   };
 
-  return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Reputation SBT Manager</h1>
+  // Profile options
+  const profileOptions = [
+    "Trader",
+    "Governor",
+    "Staker",
+    "Developer",
+    "Validator",
+    "Liquidity Provider",
+    "NFT Collector",
+    "DeFi User",
+  ];
 
+  return (
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-gray-900">
+          Reputation SBT Manager
+        </h1>
+        <p className="mt-2 text-gray-600">
+          Mint and manage your on-chain reputation Soulbound Token
+        </p>
+        {totalSupply !== null && (
+          <p className="mt-1 text-sm text-gray-500">
+            Total SBTs Minted: <span className="font-semibold">{totalSupply}</span>
+          </p>
+        )}
+      </div>
+
+      {/* Status Messages */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-700 font-medium">❌ {error}</p>
+        </div>
+      )}
+      {successMsg && (
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-green-700 font-medium">{successMsg}</p>
+        </div>
+      )}
+
+      {/* Not Connected State */}
       {!stellar.connected || !stellar.address ? (
-        <div className="text-center py-10">
+        <div className="text-center py-16 bg-white rounded-xl shadow-sm border">
+          <div className="mb-6">
+            <div className="w-20 h-20 mx-auto bg-blue-100 rounded-full flex items-center justify-center">
+              <svg
+                className="w-10 h-10 text-blue-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            </div>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Connect Your Stellar Wallet
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Connect your wallet to mint or manage your Reputation SBT
+          </p>
           <button
             onClick={handleConnectWallet}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-8 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
             disabled={isLoading}
           >
-            {isLoading ? "Connecting..." : "Connect Stellar Wallet"}
+            {isLoading ? "Connecting..." : "Connect Wallet"}
           </button>
-          {stellarError && <p className="mt-4 text-red-600">{stellarError}</p>}
+          {stellarError && (
+            <p className="mt-4 text-red-600 text-sm">{stellarError}</p>
+          )}
         </div>
       ) : (
-        <div className="space-y-8">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Connected Wallet</h2>
-            <p className="font-mono text-gray-700 break-all">
-              {stellar.address}
-            </p>
-            <p className="text-sm text-gray-500 mt-2">
-              Wallet: {stellar.walletName || "Unknown"}
-            </p>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Mint New SBT</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="space-y-6">
+          {/* Wallet Info */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border">
+            <div className="flex items-center justify-between">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Level
-                </label>
-                <select
-                  value={newSbtLevel}
-                  onChange={(e) => setNewSbtLevel(e.target.value)}
-                  className="w-full p-2 border rounded"
-                >
-                  <option value="Bronze">Bronze</option>
-                  <option value="Silver">Silver</option>
-                  <option value="Gold">Gold</option>
-                  <option value="Platinum">Platinum</option>
-                </select>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Connected Wallet
+                </h2>
+                <p className="font-mono text-sm text-gray-600 mt-1 break-all">
+                  {stellar.address}
+                </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Score
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={newSbtScore}
-                  onChange={(e) => setNewSbtScore(Number(e.target.value))}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              <div className="flex items-end">
-                <button
-                  onClick={handleMintSBT}
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
-                  disabled={isLoading}
+              <div className="text-right">
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${hasNFT
+                      ? "bg-green-100 text-green-800"
+                      : "bg-gray-100 text-gray-600"
+                    }`}
                 >
-                  {isLoading ? "Minting..." : "Mint SBT"}
-                </button>
+                  {hasNFT ? "✓ Has SBT" : "No SBT"}
+                </span>
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Your SBTs</h2>
-            {isLoading && sbtList.length === 0 ? (
-              <p className="text-center py-4">Loading SBTs...</p>
-            ) : sbtList.length === 0 ? (
-              <p className="text-center py-4">No SBTs found for this wallet.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Level
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Score
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Issued
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {sbtList.map((sbt) => (
-                      <tr
-                        key={sbt.id}
-                        className={sbt.revoked ? "bg-gray-100" : ""}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <span
-                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                              ${
-                                sbt.level === "Gold"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : sbt.level === "Silver"
-                                  ? "bg-gray-100 text-gray-800"
-                                  : sbt.level === "Platinum"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : "bg-amber-100 text-amber-800"
-                              }`}
-                            >
-                              {sbt.level}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {sbt.score}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(sbt.issuedAt).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                            ${
-                              sbt.revoked
-                                ? "bg-red-100 text-red-800"
-                                : "bg-green-100 text-green-800"
-                            }`}
-                          >
-                            {sbt.revoked ? "Revoked" : "Active"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          {!sbt.revoked && (
-                            <button
-                              onClick={() => handleRevokeSBT()}
-                              className="text-red-600 hover:text-red-900"
-                              disabled={isLoading}
-                            >
-                              Revoke
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {/* Current Reputation Display */}
+          {reputation && (
+            <div className="bg-white p-6 rounded-xl shadow-sm border">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Your Reputation SBT
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-500">Token ID</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    #{reputation.token_id}
+                  </p>
+                </div>
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-500">Score</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {reputation.score}
+                    <span className="text-sm text-gray-500">/1000</span>
+                  </p>
+                </div>
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-500">Level</p>
+                  <span
+                    className={`inline-block mt-1 px-3 py-1 rounded-full text-sm font-semibold border ${getLevelClasses(
+                      getLevel(reputation.score)
+                    )}`}
+                  >
+                    {getLevel(reputation.score)}
+                  </span>
+                </div>
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-500">Profile</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {reputation.profile}
+                  </p>
+                </div>
               </div>
-            )}
-          </div>
-        </div>
-      )}
+              <div className="mt-4 text-center text-sm text-gray-500">
+                Minted:{" "}
+                {new Date(reputation.minted_at * 1000).toLocaleString()}
+              </div>
+            </div>
+          )}
 
-      {error && (
-        <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          <span className="block sm:inline">{error}</span>
+          {/* Mint Section - Only show if no SBT */}
+          {!hasNFT && (
+            <div className="bg-white p-6 rounded-xl shadow-sm border">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                🎨 Mint New Reputation SBT
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Profile Type
+                  </label>
+                  <select
+                    value={mintProfile}
+                    onChange={(e) => setMintProfile(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isLoading}
+                  >
+                    {profileOptions.map((profile) => (
+                      <option key={profile} value={profile}>
+                        {profile}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Initial Score (0-1000)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1000"
+                    value={mintScore}
+                    onChange={(e) =>
+                      setMintScore(Math.min(1000, Math.max(0, parseInt(e.target.value) || 0)))
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isLoading}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Level: {getLevel(mintScore)}
+                  </p>
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={handleMint}
+                    className="w-full p-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Minting..." : "Mint SBT"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Update Score Section - Only show if has SBT */}
+          {hasNFT && (
+            <div className="bg-white p-6 rounded-xl shadow-sm border">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                📈 Update Your Score
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    New Score (0-1000)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1000"
+                    value={newScore}
+                    onChange={(e) =>
+                      setNewScore(Math.min(1000, Math.max(0, parseInt(e.target.value) || 0)))
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={isLoading}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    New Level: {getLevel(newScore)}{" "}
+                    {reputation && newScore !== reputation.score && (
+                      <span
+                        className={
+                          newScore > reputation.score
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }
+                      >
+                        ({newScore > reputation.score ? "↑" : "↓"}{" "}
+                        {Math.abs(newScore - reputation.score)} points)
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={handleUpdateScore}
+                    className="w-full p-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isLoading || (reputation && newScore === reputation.score)}
+                  >
+                    {isLoading ? "Updating..." : "Update Score"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Refresh Button */}
+          <div className="text-center">
+            <button
+              onClick={fetchData}
+              className="px-6 py-2 text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50"
+              disabled={isLoading}
+            >
+              {isLoading ? "Refreshing..." : "🔄 Refresh Data"}
+            </button>
+          </div>
         </div>
       )}
     </div>
