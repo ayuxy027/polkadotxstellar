@@ -116,4 +116,11 @@ coverage/
 *.apk
 *.aab
 *.keystore
-target
+
+# Rust
+target/
+**/target/
+Cargo.lock
+**/Cargo.lock
+*.wasm
+*.contract
