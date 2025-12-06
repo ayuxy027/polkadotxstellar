@@ -180,10 +180,10 @@ cargo contract build --manifest-path contracts/governance-sbt/Cargo.toml --relea
 
 - **Live Demo:** https://chainrepute.vercel.app/
 - **Video Demo:** https://drive.google.com/drive/folders/1iHgmkN-2Ddwe_2E4bYzYkrIbAKP8hAv4?usp=sharing
+- **GitHub Repository:** https://github.com/ayuxy027/ChainRepute
 - **Smart Contract Addresses:**
   - Stellar Soroban SBT (Testnet): `CDUTJKXOOVPWI6BZZDJDUMZUDBLP2VRBYPLJGF35UK52LKWM6CZXHJNX`
   - Polkadot Ink! SBT (Pop Network Testnet): *Awaiting deployment - contract built and ready*
-- **GitHub Repository:** https://github.com/ayuxy027/polkadotxstellar
 - **Backend API:** http://localhost:3001 (when running locally)
 
 ## 📸 Screenshots
